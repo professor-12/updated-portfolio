@@ -7,6 +7,8 @@
 //   data-scatter-size="md"             xs | sm | md | lg | xl | 2xl  (default: md)
 //   data-scatter-case="upper"          upper | lower | none  (default: upper)
 //   data-scatter-gap="8"               override dot center-to-center spacing (px)
+//   data-scatter-char-gap="6"          space between letters (px)
+//   data-scatter-word-gap="0"          extra space between words (px)
 //   data-scatter-repel="90"            cursor repel radius (px)
 //   data-scatter-strength="18"         repel force
 //   data-scatter-spring="0.07"         snap-back speed
@@ -136,6 +138,7 @@
         dotR: number;
         gap: number;
         charGap: number;
+        wordGap: number;
         lineGap: number;
         repel: number;
         strength: number;
@@ -232,11 +235,12 @@
         cfg: Cfg,
         caseMode: string,
     ): { dots: Dot[]; width: number; height: number } {
-        const { dotR, gap, charGap, lineGap } = cfg;
+        const { dotR, gap, charGap, wordGap, lineGap } = cfg;
         const charW = COLS * gap + charGap;
         const charH = ROWS * gap + lineGap;
         const dots: Dot[] = [];
 
+        let maxLineW = 0;
         lines.forEach((line, li) => {
             let cx = 0;
             for (const ch of line) {
@@ -250,14 +254,21 @@
                         }
                     }
                 }
-                cx += charW;
+                if (ch === " ") {
+                    // A space is a narrow ~2-column gap (plus the optional
+                    // wordGap), NOT a full 5-column character cell — otherwise
+                    // words sit too far apart.
+                    cx += gap * 2 + charGap + wordGap;
+                } else {
+                    cx += charW;
+                }
             }
+            if (cx > maxLineW) maxLineW = cx;
         });
 
-        const maxLen = Math.max(...lines.map((l) => l.length));
         return {
             dots,
-            width: maxLen * charW + dotR * 2,
+            width: maxLineW + dotR * 2,
             height: lines.length * charH + dotR * 2,
         };
     }
@@ -289,6 +300,10 @@
             charGap: parseFloat(
                 el.getAttribute("data-scatter-char-gap") ??
                     String(preset.charGap),
+            ),
+            // extra horizontal space added on each space character (word spacing)
+            wordGap: parseFloat(
+                el.getAttribute("data-scatter-word-gap") ?? "0",
             ),
             lineGap: parseFloat(
                 el.getAttribute("data-scatter-line-gap") ??

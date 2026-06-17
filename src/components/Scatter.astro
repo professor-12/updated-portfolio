@@ -37,8 +37,10 @@ interface Props extends HTMLAttributes<"div"> {
     dotR?: number;
     /** Dot center-to-center spacing (px) — overrides the size preset. */
     gap?: number;
-    /** Gap between characters (px) — overrides the size preset. */
+    /** Gap between characters/letters (px) — overrides the size preset. */
     charGap?: number;
+    /** Extra gap between words, on top of charGap (px). Default: 0. */
+    wordGap?: number;
     /** Gap between lines (px) — overrides the size preset. */
     lineGap?: number;
     /** Cursor repel radius (px). Default: 30. */
@@ -63,6 +65,7 @@ const {
     dotR,
     gap,
     charGap,
+    wordGap,
     lineGap,
     repel,
     strength,
@@ -85,6 +88,7 @@ const scatterAttrs = {
     "data-scatter-dot-r": dotR,
     "data-scatter-gap": gap,
     "data-scatter-char-gap": charGap,
+    "data-scatter-word-gap": wordGap,
     "data-scatter-line-gap": lineGap,
     "data-scatter-repel": repel,
     "data-scatter-strength": strength,

@@ -11,7 +11,7 @@ I WORK CLOSELY WITH DESIGNERS, PRODUCT OWNERS, AND ENGINEERS TO TRANSLATE IDEAS 
 // off-screen or sitting idle — only the chunk under the cursor does work.
 const aboutChunks = about
 	.split(/\n\s*\n/)
-	.map((p) => p.trim())
+	.map((p) => p)
 	.filter(Boolean);
 ---
 
@@ -30,15 +30,17 @@ const aboutChunks = about
 					sizeLg="lg"
 					
 				/>
+				<br>
 				<Scatter
-					as="p"
+					as="span"
 					text="Software Engineer"
 					size="xs"
+					display="inline"
 					class="text-red-400"
 				/>
 
 				<!-- One Scatter per paragraph: smaller canvases, lazy-animated -->
-				<div class="max-w-full md:max-w-[1000px] mt-6 flex flex-col gap-4">
+				<div class="max-w-full  mt-6 flex flex-col gap-4">
 					{
 						aboutChunks.map((chunk) => (
 							<Scatter
@@ -51,6 +53,7 @@ const aboutChunks = about
 							lineGap={6}
 							strength={14}
 							spring={0.1}
+							wordGap={0}
 							repel={10}
 						/>
 						))
