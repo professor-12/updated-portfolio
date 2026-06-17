@@ -2,9 +2,9 @@
 import Scatter from "./Scatter.astro";
 
 const links = [
-    { name: "Email / ", href: "" },
-    { name: "Github / ", href: "https://github.com/professor-12" },
-    { name: "LinkedIn / ", href: "https://linkedin.com/in/emmanueladewale" },
+    { name: "Email /", href: "" },
+    { name: "Github /", href: "https://github.com/professor-12" },
+    { name: "LinkedIn /", href: "https://linkedin.com/in/emmanueladewale" },
     { name: "Blog", href: "/projects" },
 ];
 ---
@@ -16,8 +16,7 @@ const links = [
             display="inline"
             size="xs"
             repel={10}
-            onmouseenter="this.setAttribute('data-scatter-color', 'orange')"
-            onmouseleave="this.setAttribute('data-scatter-color', '#ffffff')"
+            hoverColor="orange"
         />
     </div>
     <div class="">
@@ -30,6 +29,7 @@ const links = [
                             text={link.name}
                             display="inline"
                             color="#ffffff"
+                            hoverColor="orange"
                             size="xs"
                             repel={10}
                         />

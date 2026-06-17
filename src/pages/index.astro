@@ -1,10 +1,12 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Scatter from "../components/Scatter.astro";
+import ScatterImage from "../components/ScatterImage.astro";
+import shot from "../assets/shot.png";
+const about = `I BUILD AND SHIP SOFTWARE PRODUCTS END TO END. THE SIMPLE WAY TO PUT IT: YOU GIVE ME A PROBLEM OR GOAL, AND I TURN IT INTO A WORKING, SCALABLE PRODUCT. I OPERATE ACROSS THE FULL-STACK FROM UI/UX IMPLEMENTATION TO API DESIGN, PERFORMANCE OPTIMIZATION, AND PRODUCTION DEPLOYMENT. I CARE ABOUT BUILDING THINGS THAT ARE NOT JUST FUNCTIONAL, BUT CLEAN, MAINTAINABLE, AND FAST.`;
 
-const about = `I BUILD AND SHIP SOFTWARE PRODUCTS END TO END. THE SIMPLE WAY TO PUT IT: YOU GIVE ME A PROBLEM OR GOAL, AND I TURN IT INTO A WORKING, SCALABLE PRODUCT. I OPERATE ACROSS THE FULL STACK — FROM UI/UX IMPLEMENTATION TO API DESIGN, PERFORMANCE OPTIMIZATION, AND PRODUCTION DEPLOYMENT. I CARE ABOUT BUILDING THINGS THAT ARE NOT JUST FUNCTIONAL, BUT CLEAN, MAINTAINABLE, AND FAST.
-
-I WORK CLOSELY WITH DESIGNERS, PRODUCT OWNERS, AND ENGINEERS TO TRANSLATE IDEAS INTO REAL SHIPPABLE SYSTEMS. I’M COMFORTABLE TAKING OWNERSHIP OF FEATURES END-TO-END, MAKING TECHNICAL DECISIONS, AND MOVING FAST WITHOUT BREAKING QUALITY.`;
+const about2 = `
+BEFORE THIS, I’VE WORKED EXTENSIVELY WITH MODERN JAVASCRIPT STACKS LIKE REACT, TYPESCRIPT, AND NODE.JS, BUILDING USER-FACING APPLICATIONS AND DATA-HEAVY INTERFACES.`;
 
 // Render each paragraph as its own scatter instance instead of one giant one.
 // Each chunk is a separate canvas, so the engine can skip the ones that are
@@ -13,13 +15,24 @@ const aboutChunks = about
 	.split(/\n\s*\n/)
 	.map((p) => p)
 	.filter(Boolean);
+
+const aboutChunks2 = about2
+	.split(/\n\s*\n/)
+	.map((p) => p)
+	.filter(Boolean);
+
+// 👇 Edit this one number to control how wide the about text wraps (px).
+// It auto-shrinks on screens narrower than this.
+const aboutWidth = 600;
 ---
 
 <Layout>
-	<main class="mt-8 md:mt-15">
+	<main class="mt-8 flex items-center justify-between md:mt-15">
 		<!-- Portrait + text: stacked on mobile, side by side from md up -->
-		<div class="flex flex-col md:flex-row gap-8 md:gap-12 md:items-center">
-			<div class="min-w-0">
+		<div
+			class="flex w-1/2 flex-col md:flex-row gap-8 md:gap-12 md:items-center"
+		>
+			<div class="w-full md:w-full">
 				<!-- Heading scales up with the viewport; block mode reflows to fit -->
 				<Scatter
 					as="h1"
@@ -28,37 +41,56 @@ const aboutChunks = about
 					sizeMd="md"
 					display="inline"
 					sizeLg="lg"
-					
 				/>
-				<br>
+				<br />
 				<Scatter
 					as="span"
-					text="Software Engineer"
+					text="18 years old Software Engineer"
 					size="xs"
 					display="inline"
 					class="text-red-400"
 				/>
 
 				<!-- One Scatter per paragraph: smaller canvases, lazy-animated -->
-				<div class="max-w-full  mt-6 flex flex-col gap-4">
+				<div class="mt-6 flex flex-col gap-4">
 					{
 						aboutChunks.map((chunk) => (
 							<Scatter
-							text={chunk}
-							as="span"
-							size="xs"
-							gap={2}
-							dotR={1}
-							charGap={3}
-							lineGap={6}
-							strength={14}
-							spring={0.1}
-							wordGap={0}
-							repel={10}
-						/>
+								text={chunk}
+								as="span"
+								size="xs"
+								width={aboutWidth}
+								gap={2.1}
+								dotR={1}
+								charGap={3}
+								lineGap={6}
+								strength={14}
+								spring={0.1}
+								wordGap={-1}
+								repel={10}
+							/>
 						))
 					}
 				</div>
+				<div class="mt-6 flex flex-col gap-4">
+					{
+						aboutChunks2.map((chunk) => (
+							<Scatter
+								text={chunk}
+								as="span"
+								size="xs"
+								width={aboutWidth}
+								gap={2}
+								dotR={0.8}
+								charGap={3}
+								lineGap={6}
+								strength={14}
+								spring={0.1}
+								wordGap={-1}
+								repel={10}
+							/>
+						))
+					}
 			</div>
 		</div>
 	</main>

@@ -23,8 +23,12 @@ interface Props extends HTMLAttributes<"div"> {
     as?: keyof astroHTML.JSX.IntrinsicElements;
     /** "inline" sizes to the text; "block" wraps to the container. Default: "block". */
     display?: "inline" | "block";
+    /** Wrap width in px for block mode. Clamped to the container on small screens. */
+    width?: number;
     /** Dot color (default: #ffffff). */
     color?: string;
+    /** Dot color while hovered. Reverts to `color` on mouse leave. */
+    hoverColor?: string;
     /** Size preset (mobile-first base): xs | sm | md | lg | xl | 2xl. Default: md. */
     size?: ScatterSize;
     /** Size preset at ≥768px (Tailwind `md`). Falls back to `size`. */
@@ -57,7 +61,9 @@ const {
     text,
     as: Tag = "div",
     display,
+    width,
     color,
+    hoverColor,
     size,
     sizeMd,
     sizeLg,
@@ -80,7 +86,9 @@ const scatterAttrs = {
     "data-scatter": true,
     "data-scatter-text": text,
     "data-scatter-display": display,
+    "data-scatter-width": width,
     "data-scatter-color": color,
+    "data-scatter-hover-color": hoverColor,
     "data-scatter-size": size,
     "data-scatter-size-md": sizeMd,
     "data-scatter-size-lg": sizeLg,
@@ -138,4 +146,19 @@ const scatterAttrs = {
     LG.addEventListener("change", applyResponsiveSizes);
     // Run before the engine's DOMContentLoaded init so the first paint is correct.
     applyResponsiveSizes();
+
+    // Hover recolour: swap data-scatter-color on enter/leave. The engine's
+    // MutationObserver picks up the change and repaints.
+    document
+        .querySelectorAll<HTMLElement>("[data-scatter-hover-color]")
+        .forEach((el) => {
+            const hover = el.getAttribute("data-scatter-hover-color")!;
+            const base = el.getAttribute("data-scatter-color") ?? "#ffffff";
+            el.addEventListener("mouseenter", () =>
+                el.setAttribute("data-scatter-color", hover),
+            );
+            el.addEventListener("mouseleave", () =>
+                el.setAttribute("data-scatter-color", base),
+            );
+        });
 </script>

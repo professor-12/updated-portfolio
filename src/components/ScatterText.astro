@@ -106,7 +106,28 @@
         "=": [0b00000, 0b00000, 0b11111, 0b00000, 0b11111, 0b00000, 0b00000],
         "@": [0b01110, 0b10001, 0b10111, 0b10101, 0b10110, 0b10000, 0b01111],
         "#": [0b01010, 0b01010, 0b11111, 0b01010, 0b11111, 0b01010, 0b01010],
+        "%": [0b11000, 0b11001, 0b00010, 0b00100, 0b01000, 0b10011, 0b00011],
+        "*": [0b00000, 0b00100, 0b10101, 0b01110, 0b10101, 0b00100, 0b00000],
+        "_": [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b11111],
+        "<": [0b00010, 0b00100, 0b01000, 0b10000, 0b01000, 0b00100, 0b00010],
+        ">": [0b01000, 0b00100, 0b00010, 0b00001, 0b00010, 0b00100, 0b01000],
+        "[": [0b00110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00110],
+        "]": [0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01100],
+        $: [0b00100, 0b01111, 0b10100, 0b01110, 0b00101, 0b11110, 0b00100],
+        "…": [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b10101],
         " ": [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000],
+    };
+
+    // Typographic variants that smart-quote/auto-format tools produce. Map them
+    // onto the plain glyphs we already have instead of rendering blanks.
+    const ALIASES: Record<string, string> = {
+        "‘": "'", // ‘ left single quote
+        "’": "'", // ’ right single quote / apostrophe
+        "“": '"', // “ left double quote
+        "”": '"', // ” right double quote
+        "–": "-", // – en dash
+        "—": "-", // — em dash
+        " ": " ", // non-breaking space
     };
 
     const FONT = { ...UPPER, ...LOWER, ...SHARED };
@@ -180,7 +201,27 @@
               )
             : null;
 
+    // Live-updates the dot colour when data-scatter-color changes (e.g. on
+    // hover), without rebuilding the whole instance.
+    const colorObserver =
+        typeof MutationObserver !== "undefined"
+            ? new MutationObserver((muts) => {
+                  for (const m of muts) {
+                      const el = m.target as HTMLElement;
+                      const inst = instances.find((i) => i.el === el);
+                      if (inst) {
+                          inst.color =
+                              el.getAttribute("data-scatter-color") ??
+                              inst.color;
+                          inst.settled = false; // force a repaint
+                      }
+                  }
+              })
+            : null;
+
     function getChar(ch: string, caseMode: string): number[] {
+        // Normalise smart quotes / dashes to their plain equivalents first.
+        ch = ALIASES[ch] ?? ch;
         if (caseMode === "upper") {
             const k = ch.toUpperCase();
             return FONT[k] ?? SHARED[ch] ?? SHARED[" "];
@@ -334,10 +375,17 @@
                       : rawText;
             lines = transformed.split("\\n");
         } else {
-            // Wrap to fit available container width
-            const availW =
+            // Wrap to fit available width.
+            const containerW =
                 el.clientWidth ||
                 (el.parentElement?.clientWidth ?? window.innerWidth);
+            // An explicit data-scatter-width sets the wrap width directly, but is
+            // clamped to the container so it still shrinks on small screens.
+            const explicitW = parseFloat(
+                el.getAttribute("data-scatter-width") ?? "",
+            );
+            const availW =
+                explicitW > 0 ? Math.min(explicitW, containerW) : containerW;
             const maxChars = Math.max(1, Math.floor(availW / charW));
             lines = wrapText(rawText, maxChars, caseMode);
         }
@@ -371,10 +419,15 @@
             settled: false,
         });
         visObserver?.observe(el);
+        colorObserver?.observe(el, {
+            attributes: true,
+            attributeFilter: ["data-scatter-color"],
+        });
     }
 
     function init() {
         visObserver?.disconnect();
+        colorObserver?.disconnect();
         instances.length = 0;
         document
             .querySelectorAll<HTMLElement>("[data-scatter]")
