@@ -1,37 +1,37 @@
 ---
+import Scatter from "./Scatter.astro";
+
 const links = [
     { name: "Email / ", href: "" },
-    { name: "Github / ", href: "/about" },
-    { name: "LinkedIn / ", href: "/projects" },
+    { name: "Github / ", href: "https://github.com/professor-12" },
+    { name: "LinkedIn / ", href: "https://linkedin.com/in/emmanueladewale" },
     { name: "Blog", href: "/projects" },
-
 ];
 ---
 
-<header class="w-full mt-4 flex items-center justify-between px-4 py-2">
+<header class="w-full mt-4 flex items-center justify-between py-2">
     <div>
-        <div
-            data-scatter
-            data-scatter-text="Big dev"
-            data-scatter-display="inline"
-            data-scatter-color="#ffffff"
-            data-scatter-size="xs"
-            data-scatter-repel="10"
-        >
-        </div>
+        <Scatter
+            text="Big dev"
+            display="inline"
+            size="xs"
+            repel={10}
+            onmouseenter="this.setAttribute('data-scatter-color', 'orange')"
+            onmouseleave="this.setAttribute('data-scatter-color', '#ffffff')"
+        />
     </div>
     <div class="">
         <nav class="flex gap-4 justify-center items-center px-6 py-3">
             {
                 links.map((link) => (
                     <a href={link.href}>
-                        <span
-                            data-scatter
-                            data-scatter-display="inline"
-                            data-scatter-text={link.name}
-                            data-scatter-color="#ffffff"
-                            data-scatter-size="xs"
-                            data-scatter-repel="10"
+                        <Scatter
+                            as="span"
+                            text={link.name}
+                            display="inline"
+                            color="#ffffff"
+                            size="xs"
+                            repel={10}
                         />
                     </a>
                 ))

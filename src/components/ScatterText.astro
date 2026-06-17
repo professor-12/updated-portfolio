@@ -115,8 +115,8 @@
     > = {
         xs: { dotR: 0.7, gap: 1.8, charGap: 2, lineGap: 6 },
         sm: { dotR: 1.8, gap: 6, charGap: 4, lineGap: 7 },
-        md: { dotR: 2.5, gap: 8, charGap: 6, lineGap: 10 },
-        lg: { dotR: 3.5, gap: 11, charGap: 8, lineGap: 14 },
+        md: { dotR: 2, gap: 2, charGap: 4, lineGap: 10 },
+        lg: { dotR:1.5, gap: 3.4, charGap:4, lineGap: 14 },
         xl: { dotR: 5, gap: 15, charGap: 11, lineGap: 18 },
         "2xl": { dotR: 7, gap: 21, charGap: 15, lineGap: 24 },
     };
@@ -143,15 +143,39 @@
         friction: number;
     }
     interface Instance {
+        el: HTMLElement;
         canvas: HTMLCanvasElement;
         ctx: CanvasRenderingContext2D;
         dots: Dot[];
         color: string;
         cfg: Cfg;
+        // perf flags: only animate what's on screen and not already at rest
+        visible: boolean;
+        settled: boolean;
     }
 
     const mouse = { x: -9999, y: -9999 };
     const instances: Instance[] = [];
+
+    // Marks an instance off-screen (skipped in the loop) until it scrolls in.
+    const visObserver =
+        typeof IntersectionObserver !== "undefined"
+            ? new IntersectionObserver(
+                  (entries) => {
+                      for (const e of entries) {
+                          const inst = instances.find(
+                              (i) => i.el === e.target,
+                          );
+                          if (inst) {
+                              inst.visible = e.isIntersecting;
+                              // force a repaint when it re-enters the viewport
+                              if (e.isIntersecting) inst.settled = false;
+                          }
+                      }
+                  },
+                  { rootMargin: "100px" },
+              )
+            : null;
 
     function getChar(ch: string, caseMode: string): number[] {
         if (caseMode === "upper") {
@@ -270,7 +294,7 @@
                 el.getAttribute("data-scatter-line-gap") ??
                     String(preset.lineGap),
             ),
-            repel: parseFloat(el.getAttribute("data-scatter-repel") ?? "30"),
+            repel: parseFloat(el.getAttribute("data-scatter-repel") ?? "20"),
             strength: parseFloat(
                 el.getAttribute("data-scatter-strength") ?? "18",
             ),
@@ -320,15 +344,22 @@
 
         el.insertAdjacentElement("afterbegin", canvas);
         instances.push({
+            el,
             canvas,
             ctx: canvas.getContext("2d")!,
             dots,
             color,
             cfg,
+            // assume visible until the observer says otherwise (handles
+            // browsers without IntersectionObserver too)
+            visible: true,
+            settled: false,
         });
+        visObserver?.observe(el);
     }
 
     function init() {
+        visObserver?.disconnect();
         instances.length = 0;
         document
             .querySelectorAll<HTMLElement>("[data-scatter]")
@@ -336,19 +367,45 @@
     }
 
     function tick() {
-        for (const { canvas, ctx, dots, color, cfg } of instances) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (const inst of instances) {
+            // Skip anything scrolled out of view — the biggest win for long,
+            // chunked text where most paragraphs are off-screen.
+            if (!inst.visible) continue;
+
+            const { canvas, ctx, dots, color, cfg } = inst;
 
             const rect = canvas.getBoundingClientRect();
             const mx = mouse.x - rect.left - window.scrollX;
             const my = mouse.y - rect.top - window.scrollY;
 
+            // Is the cursor close enough to this canvas to disturb any dot?
+            const mouseNear =
+                mx > -cfg.repel &&
+                mx < canvas.width + cfg.repel &&
+                my > -cfg.repel &&
+                my < canvas.height + cfg.repel;
+
+            // Settled + cursor away => nothing changes, keep last frame painted.
+            if (inst.settled && !mouseNear) continue;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let moving = false;
+            const r = cfg.dotR;
+            const repel2 = cfg.repel * cfg.repel;
+            // Colour is constant per instance — set it once, not per dot.
+            ctx.fillStyle = color;
+            // Accumulate every resting dot into a single path and fill it in ONE
+            // call instead of thousands of individual beginPath/fill calls.
+            const restPath = new Path2D();
+
             for (const d of dots) {
                 const dx = d.x - mx;
                 const dy = d.y - my;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+                const d2 = dx * dx + dy * dy;
 
-                if (dist < cfg.repel && dist > 0) {
+                if (d2 < repel2 && d2 > 0) {
+                    const dist = Math.sqrt(d2);
                     const force = (cfg.repel - dist) / cfg.repel;
                     d.vx += (dx / dist) * force * cfg.strength;
                     d.vy += (dy / dist) * force * cfg.strength;
@@ -359,25 +416,15 @@
                     ctx.translate(d.x, d.y);
                     ctx.rotate(angle);
                     ctx.beginPath();
-                    ctx.ellipse(
-                        0,
-                        0,
-                        cfg.dotR * stretch,
-                        cfg.dotR * 0.55,
-                        0,
-                        0,
-                        Math.PI * 2,
-                    );
-                    ctx.fillStyle = color;
+                    ctx.ellipse(0, 0, r * stretch, r * 0.55, 0, 0, Math.PI * 2);
                     ctx.globalAlpha = 0.35 + force * 0.65;
                     ctx.fill();
                     ctx.restore();
                     ctx.globalAlpha = 1;
                 } else {
-                    ctx.beginPath();
-                    ctx.arc(d.x, d.y, cfg.dotR, 0, Math.PI * 2);
-                    ctx.fillStyle = color;
-                    ctx.fill();
+                    // moveTo prevents a connecting line from the previous arc
+                    restPath.moveTo(d.x + r, d.y);
+                    restPath.arc(d.x, d.y, r, 0, Math.PI * 2);
                 }
 
                 d.vx += (d.ox - d.x) * cfg.spring;
@@ -386,7 +433,23 @@
                 d.vy *= cfg.friction;
                 d.x += d.vx;
                 d.y += d.vy;
+
+                // still in motion if it has speed or hasn't snapped home yet
+                if (
+                    Math.abs(d.vx) > 0.05 ||
+                    Math.abs(d.vy) > 0.05 ||
+                    Math.abs(d.x - d.ox) > 0.05 ||
+                    Math.abs(d.y - d.oy) > 0.05
+                ) {
+                    moving = true;
+                }
             }
+
+            // Single fill for all the resting dots.
+            ctx.fill(restPath);
+
+            // Once the cursor leaves and every dot is home, stop redrawing it.
+            inst.settled = !mouseNear && !moving;
         }
         requestAnimationFrame(tick);
     }

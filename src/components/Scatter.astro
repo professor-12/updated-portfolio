@@ -1,0 +1,137 @@
+---
+// Scatter.astro — declarative wrapper for the scatter-text effect.
+//
+// Pass the options as props instead of hand-writing data-scatter-* attributes.
+// The actual effect is driven by ScatterText.astro, which scans the page for
+// [data-scatter] elements — so make sure that component is included once
+// (e.g. in your Layout).
+//
+// Example:
+//   <Scatter text="Welcome to my Portfolio" size="md" repel={30} />
+//   <Scatter as="span" text={link.name} display="inline" size="xs" />
+
+import type { HTMLAttributes } from "astro/types";
+
+type ScatterSize = "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
+
+// Extends the generic HTML attributes so callers can also pass class, style,
+// event handlers (onmouseenter, …) and any other standard attribute.
+interface Props extends HTMLAttributes<"div"> {
+    /** Text to render as dots. Falls back to slotted content if omitted. */
+    text?: string;
+    /** HTML element to render. Default: "div". */
+    as?: keyof astroHTML.JSX.IntrinsicElements;
+    /** "inline" sizes to the text; "block" wraps to the container. Default: "block". */
+    display?: "inline" | "block";
+    /** Dot color (default: #ffffff). */
+    color?: string;
+    /** Size preset (mobile-first base): xs | sm | md | lg | xl | 2xl. Default: md. */
+    size?: ScatterSize;
+    /** Size preset at ≥768px (Tailwind `md`). Falls back to `size`. */
+    sizeMd?: ScatterSize;
+    /** Size preset at ≥1024px (Tailwind `lg`). Falls back to `sizeMd`/`size`. */
+    sizeLg?: ScatterSize;
+    /** Letter case: upper | lower | none. Default: upper. */
+    case?: "upper" | "lower" | "none";
+    /** Dot radius (px) — overrides the size preset. */
+    dotR?: number;
+    /** Dot center-to-center spacing (px) — overrides the size preset. */
+    gap?: number;
+    /** Gap between characters (px) — overrides the size preset. */
+    charGap?: number;
+    /** Gap between lines (px) — overrides the size preset. */
+    lineGap?: number;
+    /** Cursor repel radius (px). Default: 30. */
+    repel?: number;
+    /** Repel force. Default: 18. */
+    strength?: number;
+    /** Snap-back speed. Default: 0.07. */
+    spring?: number;
+    /** Damping (0–1, lower = bouncier). Default: 0.76. */
+    friction?: number;
+}
+
+const {
+    text,
+    as: Tag = "div",
+    display,
+    color,
+    size,
+    sizeMd,
+    sizeLg,
+    case: caseMode,
+    dotR,
+    gap,
+    charGap,
+    lineGap,
+    repel,
+    strength,
+    spring,
+    friction,
+    ...rest
+}: Props = Astro.props;
+
+// Only emit attributes that were actually provided, so the engine's own
+// defaults stay in effect for everything else.
+const scatterAttrs = {
+    "data-scatter": true,
+    "data-scatter-text": text,
+    "data-scatter-display": display,
+    "data-scatter-color": color,
+    "data-scatter-size": size,
+    "data-scatter-size-md": sizeMd,
+    "data-scatter-size-lg": sizeLg,
+    "data-scatter-case": caseMode,
+    "data-scatter-dot-r": dotR,
+    "data-scatter-gap": gap,
+    "data-scatter-char-gap": charGap,
+    "data-scatter-line-gap": lineGap,
+    "data-scatter-repel": repel,
+    "data-scatter-strength": strength,
+    "data-scatter-spring": spring,
+    "data-scatter-friction": friction,
+};
+---
+
+<Tag {...scatterAttrs} {...rest}><slot /></Tag>
+
+<script>
+    // Responsive sizing: pick the right preset per breakpoint and ask the
+    // ScatterText engine to re-render (it re-inits on "resize"). This script is
+    // bundled once no matter how many <Scatter> components are on the page.
+    const MD = window.matchMedia("(min-width: 768px)");
+    const LG = window.matchMedia("(min-width: 1024px)");
+
+    function applyResponsiveSizes() {
+        let changed = false;
+        document
+            .querySelectorAll<HTMLElement>(
+                "[data-scatter-size-md], [data-scatter-size-lg]",
+            )
+            .forEach((el) => {
+                // Remember the server-rendered (mobile) size once.
+                if (!el.dataset.scatterSizeBase) {
+                    el.dataset.scatterSizeBase =
+                        el.getAttribute("data-scatter-size") ?? "md";
+                }
+                let next = el.dataset.scatterSizeBase;
+                const md = el.getAttribute("data-scatter-size-md");
+                const lg = el.getAttribute("data-scatter-size-lg");
+                if (md && MD.matches) next = md;
+                if (lg && LG.matches) next = lg;
+
+                if (el.getAttribute("data-scatter-size") !== next) {
+                    el.setAttribute("data-scatter-size", next);
+                    changed = true;
+                }
+            });
+
+        // Only re-init when something actually changed breakpoint.
+        if (changed) window.dispatchEvent(new Event("resize"));
+    }
+
+    MD.addEventListener("change", applyResponsiveSizes);
+    LG.addEventListener("change", applyResponsiveSizes);
+    // Run before the engine's DOMContentLoaded init so the first paint is correct.
+    applyResponsiveSizes();
+</script>

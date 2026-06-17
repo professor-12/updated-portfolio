@@ -1,0 +1,229 @@
+---
+// ScatterImage.astro
+// Usage: <ScatterImage src="/photo.jpg" width={600} height={400} />
+//
+// Props:
+//   src         — image path (required)
+//   width       — display width in px (default 600)
+//   height      — display height in px (default 400)
+//   dotSpacing  — px between dot samples (default 6)
+//   dotRadius   — dot radius in px (default 2)
+//   repel       — cursor repel radius (default 100)
+//   strength    — repel force (default 20)
+//   spring      — snap-back speed (default 0.07)
+//   friction    — damping 0–1 (default 0.76)
+//   threshold   — min alpha 0–255 to include a dot (default 30)
+//   grayscale   — render all dots in one color instead of sampled (default false)
+//   color       — dot color when grayscale=true (default "#ffffff")
+
+interface Props {
+  src: string;
+  width?: number;
+  height?: number;
+  dotSpacing?: number;
+  dotRadius?: number;
+  repel?: number;
+  strength?: number;
+  spring?: number;
+  friction?: number;
+  threshold?: number;
+  grayscale?: boolean;
+  color?: string;
+  class?: string;
+}
+
+const {
+  src,
+  width = 600,
+  height = 400,
+  dotSpacing = 6,
+  dotRadius = 2,
+  repel = 100,
+  strength = 20,
+  spring = 0.07,
+  friction = 0.76,
+  threshold = 30,
+  grayscale = false,
+  color = '#ffffff',
+  class: className = '',
+} = Astro.props;
+---
+
+<div
+  class={`scatter-image-host ${className}`}
+  style={`position:relative;width:${width}px;height:${height}px;display:inline-block;`}
+  data-si-src={src}
+  data-si-width={width}
+  data-si-height={height}
+  data-si-spacing={dotSpacing}
+  data-si-radius={dotRadius}
+  data-si-repel={repel}
+  data-si-strength={strength}
+  data-si-spring={spring}
+  data-si-friction={friction}
+  data-si-threshold={threshold}
+  data-si-grayscale={grayscale ? '1' : '0'}
+  data-si-color={color}
+  aria-label="Scatter image"
+>
+  <canvas style="position:absolute;top:0;left:0;" aria-hidden="true"></canvas>
+  <!-- Visually hidden img for accessibility -->
+  <img src={src} alt="" style="opacity:0;position:absolute;width:1px;height:1px;" aria-hidden="true" />
+</div>
+
+<script>
+interface Dot {
+  ox: number; oy: number;
+  x:  number; y:  number;
+  vx: number; vy: number;
+  r: number; g: number; b: number; a: number;
+}
+
+interface SIInstance {
+  canvas: HTMLCanvasElement;
+  ctx:    CanvasRenderingContext2D;
+  dots:   Dot[];
+  cfg: {
+    repel: number; strength: number;
+    spring: number; friction: number;
+    dotRadius: number;
+    grayscale: boolean; color: string;
+  };
+}
+
+const mouse = { x: -9999, y: -9999 };
+const instances: SIInstance[] = [];
+let rafStarted = false;
+
+function sampleImage(
+  img: HTMLImageElement,
+  targetW: number,
+  targetH: number,
+  spacing: number,
+  threshold: number,
+): { r:number; g:number; b:number; a:number; ox:number; oy:number }[] {
+  const off = document.createElement('canvas');
+  off.width  = targetW;
+  off.height = targetH;
+  const oc = off.getContext('2d')!;
+  oc.drawImage(img, 0, 0, targetW, targetH);
+  const { data } = oc.getImageData(0, 0, targetW, targetH);
+
+  const dots = [];
+  for (let y = 0; y < targetH; y += spacing) {
+    for (let x = 0; x < targetW; x += spacing) {
+      const i = (y * targetW + x) * 4;
+      const a = data[i + 3];
+      if (a > threshold) {
+        dots.push({ r: data[i], g: data[i+1], b: data[i+2], a, ox: x, oy: y });
+      }
+    }
+  }
+  return dots;
+}
+
+function initHost(host: HTMLElement) {
+  const src       = host.dataset.siSrc!;
+  const width     = parseInt(host.dataset.siWidth!);
+  const height    = parseInt(host.dataset.siHeight!);
+  const spacing   = parseInt(host.dataset.siSpacing!);
+  const dotRadius = parseFloat(host.dataset.siRadius!);
+  const repel     = parseFloat(host.dataset.siRepel!);
+  const strength  = parseFloat(host.dataset.siStrength!);
+  const spring    = parseFloat(host.dataset.siSpring!);
+  const friction  = parseFloat(host.dataset.siFriction!);
+  const threshold = parseInt(host.dataset.siThreshold!);
+  const grayscale = host.dataset.siGrayscale === '1';
+  const color     = host.dataset.siColor!;
+
+  const canvas = host.querySelector('canvas')!;
+  canvas.width  = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = src;
+
+  img.onload = () => {
+    const sampled = sampleImage(img, width, height, spacing, threshold);
+    const dots: Dot[] = sampled.map(s => ({
+      ox: s.ox, oy: s.oy,
+      x:  s.ox, y:  s.oy,
+      vx: 0,    vy: 0,
+      r: s.r, g: s.g, b: s.b, a: s.a,
+    }));
+
+    instances.push({ canvas, ctx, dots, cfg: { repel, strength, spring, friction, dotRadius, grayscale, color } });
+
+    if (!rafStarted) {
+      rafStarted = true;
+      requestAnimationFrame(tick);
+    }
+  };
+}
+
+function tick() {
+  for (const { canvas, ctx, dots, cfg } of instances) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const rect = canvas.getBoundingClientRect();
+    const mx   = mouse.x - rect.left - window.scrollX;
+    const my   = mouse.y - rect.top  - window.scrollY;
+
+    for (const d of dots) {
+      const dx   = d.x - mx;
+      const dy   = d.y - my;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      const dotColor = cfg.grayscale
+        ? cfg.color
+        : `rgba(${d.r},${d.g},${d.b},${(d.a / 255).toFixed(2)})`;
+
+      if (dist < cfg.repel && dist > 0) {
+        const force   = (cfg.repel - dist) / cfg.repel;
+        d.vx += (dx / dist) * force * cfg.strength;
+        d.vy += (dy / dist) * force * cfg.strength;
+
+        const angle   = Math.atan2(dy, dx);
+        const stretch = 1 + force * 3.5;
+
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, cfg.dotRadius * stretch, cfg.dotRadius * 0.55, 0, 0, Math.PI * 2);
+        ctx.fillStyle   = dotColor;
+        ctx.globalAlpha = 0.4 + force * 0.6;
+        ctx.fill();
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, cfg.dotRadius, 0, Math.PI * 2);
+        ctx.fillStyle = dotColor;
+        ctx.fill();
+      }
+
+      d.vx += (d.ox - d.x) * cfg.spring;
+      d.vy += (d.oy - d.y) * cfg.spring;
+      d.vx *= cfg.friction;
+      d.vy *= cfg.friction;
+      d.x  += d.vx;
+      d.y  += d.vy;
+    }
+  }
+
+  requestAnimationFrame(tick);
+}
+
+window.addEventListener('mousemove', e => {
+  mouse.x = e.clientX + window.scrollX;
+  mouse.y = e.clientY + window.scrollY;
+});
+window.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll<HTMLElement>('.scatter-image-host').forEach(initHost);
+});
+</script>

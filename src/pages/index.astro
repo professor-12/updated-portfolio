@@ -1,7 +1,62 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import Scatter from "../components/Scatter.astro";
+
+const about = `I BUILD AND SHIP SOFTWARE PRODUCTS END TO END. THE SIMPLE WAY TO PUT IT: YOU GIVE ME A PROBLEM OR GOAL, AND I TURN IT INTO A WORKING, SCALABLE PRODUCT. I OPERATE ACROSS THE FULL STACK — FROM UI/UX IMPLEMENTATION TO API DESIGN, PERFORMANCE OPTIMIZATION, AND PRODUCTION DEPLOYMENT. I CARE ABOUT BUILDING THINGS THAT ARE NOT JUST FUNCTIONAL, BUT CLEAN, MAINTAINABLE, AND FAST.
+
+I WORK CLOSELY WITH DESIGNERS, PRODUCT OWNERS, AND ENGINEERS TO TRANSLATE IDEAS INTO REAL SHIPPABLE SYSTEMS. I’M COMFORTABLE TAKING OWNERSHIP OF FEATURES END-TO-END, MAKING TECHNICAL DECISIONS, AND MOVING FAST WITHOUT BREAKING QUALITY.`;
+
+// Render each paragraph as its own scatter instance instead of one giant one.
+// Each chunk is a separate canvas, so the engine can skip the ones that are
+// off-screen or sitting idle — only the chunk under the cursor does work.
+const aboutChunks = about
+	.split(/\n\s*\n/)
+	.map((p) => p.trim())
+	.filter(Boolean);
 ---
 
 <Layout>
-	<h1 class="text-4xl font-bold text-center mt-20 text-white">Welcome to my Portfolio</h1>
+	<main class="mt-8 md:mt-15">
+		<!-- Portrait + text: stacked on mobile, side by side from md up -->
+		<div class="flex flex-col md:flex-row gap-8 md:gap-12 md:items-center">
+			<div class="min-w-0">
+				<!-- Heading scales up with the viewport; block mode reflows to fit -->
+				<Scatter
+					as="h1"
+					text="Emmanuel Adewale"
+					size="sm"
+					sizeMd="md"
+					display="inline"
+					sizeLg="lg"
+					
+				/>
+				<Scatter
+					as="p"
+					text="Software Engineer"
+					size="xs"
+					class="text-red-400"
+				/>
+
+				<!-- One Scatter per paragraph: smaller canvases, lazy-animated -->
+				<div class="max-w-full md:max-w-[1000px] mt-6 flex flex-col gap-4">
+					{
+						aboutChunks.map((chunk) => (
+							<Scatter
+							text={chunk}
+							as="span"
+							size="xs"
+							gap={2}
+							dotR={1}
+							charGap={3}
+							lineGap={6}
+							strength={14}
+							spring={0.1}
+							repel={10}
+						/>
+						))
+					}
+				</div>
+			</div>
+		</div>
+	</main>
 </Layout>
