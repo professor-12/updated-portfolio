@@ -2,6 +2,9 @@
 import Layout from "../layouts/Layout.astro";
 import Scatter from "../components/Scatter.astro";
 import ScatterImage from "../components/ScatterImage.astro";
+import SelectedWork from "../components/SelectedWork.astro";
+
+
 import shot from "../assets/shot.png";
 const about = `I BUILD AND SHIP SOFTWARE PRODUCTS END TO END. THE SIMPLE WAY TO PUT IT: YOU GIVE ME A PROBLEM OR GOAL, AND I TURN IT INTO A WORKING, SCALABLE PRODUCT. I OPERATE ACROSS THE FULL-STACK FROM UI/UX IMPLEMENTATION TO API DESIGN, PERFORMANCE OPTIMIZATION, AND PRODUCTION DEPLOYMENT. I CARE ABOUT BUILDING THINGS THAT ARE NOT JUST FUNCTIONAL, BUT CLEAN, MAINTAINABLE, AND FAST.`;
 
@@ -30,7 +33,7 @@ const aboutWidth = 600;
 	<main class="mt-8 flex items-center justify-between md:mt-15">
 		<!-- Portrait + text: stacked on mobile, side by side from md up -->
 		<div
-			class="flex w-1/2 flex-col md:flex-row gap-8 md:gap-12 md:items-center"
+			class="flex w-[70%] flex-col md:flex-row gap-8 md:gap-12 md:items-center"
 		>
 			<div class="w-full md:w-full">
 				<!-- Heading scales up with the viewport; block mode reflows to fit -->
@@ -52,7 +55,7 @@ const aboutWidth = 600;
 				/>
 
 				<!-- One Scatter per paragraph: smaller canvases, lazy-animated -->
-				<div class="mt-6 flex flex-col gap-4">
+				<div class="mt-6 w-full flex flex-col gap-4">
 					{
 						aboutChunks.map((chunk) => (
 							<Scatter
@@ -72,7 +75,7 @@ const aboutWidth = 600;
 						))
 					}
 				</div>
-				<div class="mt-6 flex flex-col gap-4">
+				<div class="mt-6 w-full flex flex-col gap-4">
 					{
 						aboutChunks2.map((chunk) => (
 							<Scatter
@@ -94,4 +97,5 @@ const aboutWidth = 600;
 			</div>
 		</div>
 	</main>
+	<SelectedWork/>	
 </Layout>

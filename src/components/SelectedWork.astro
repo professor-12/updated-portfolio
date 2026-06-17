@@ -1,0 +1,69 @@
+---
+import Scatter from "./Scatter.astro";
+
+const subtitle =
+    `MY CURRENT JOB, THE ROLE BEFORE IT, A RESEARCH PROJECT THAT WON
+BEST PAPER, AND THE ENGINE RENDERING THIS PAGE AS YOU READ IT.`
+        .split(/\n\s*\n/)
+        .map((p) => p)
+        .filter(Boolean);
+
+const experiences = [
+    {
+        expType: "",
+        title: "NATIVEBRANDS",
+        role: "BACKEND LEAD",
+        points: [
+            "LED THE DEVELOPMENT OF INTERACTIVE FRONTEND EXPERIENCES, TRANSLATING DESIGNS INTO HIGH-QUALITY, PRODUCTION-READY APPLICATIONS.",
+            "OWN AND MAINTAIN CORE BACKEND SERVICES, DELIVERING NEW API ENDPOINTS WHILE ENSURING STABILITY OF EXISTING SYSTEMS.",
+            "DRIVE PERFORMANCE TESTING AND OPTIMIZATION EFFORTS TO IDENTIFY BOTTLENECKS BEFORE THEY IMPACT CUSTOMERS.",
+            "HANDLE DAY-TO-DAY OPERATIONAL CHALLENGES, FROM DEBUGGING PRODUCTION ISSUES TO IMPROVING DEPLOYMENT AND MONITORING WORKFLOWS.",
+        ],
+        tags: ["FRONTEND","BACKEND","PERFORMANCE TESTING","INFRASTRUCTURE","INFRASTRUCTURE","API DESIGN"],
+        desc: "NATIVEBRANDS IS WHERE I GREW FROM FRONTEND ENGINEER TO BACKEND LEAD. I STARTED BY BUILDING HIGH-PERFORMANCE WEB EXPERIENCES, COMPLEX ANIMATIONS, AND CUSTOMER-FACING PRODUCTS. TODAY, I FOCUS ON THE SYSTEMS BEHIND THOSE PRODUCTS — MAINTAINING CRITICAL SERVICES, IMPROVING PERFORMANCE, BUILDING APIS, AND ENSURING THE PLATFORM SCALES RELIABLY AS THE BUSINESS GROWS.",
+    },
+];
+---
+
+<main class="mt-43 w-full">
+    <div>
+        <Scatter
+            text="Where i got things done"
+            as="p"
+            size="xs"
+            sizeMd="xs"
+            display="inline"
+            sizeLg="xs"
+        />
+        <br />
+        <Scatter
+            as="h1"
+            text="Selected Work"
+            size="sm"
+            sizeMd="md"
+            display="inline"
+            sizeLg="lg"
+        />
+        <div class="w-full flex flex-col gap-4">
+            {
+                subtitle.map((chunk) => (
+                    <Scatter
+                        text={chunk}
+                        as="span"
+                        size="xs"
+                        gap={2.1}
+                        dotR={1}
+                        charGap={3}
+                        lineGap={6}
+                        strength={14}
+                        spring={0.1}
+                        wordGap={-1}
+                        repel={10}
+                    />
+                ))
+            }
+        </div>
+
+        <div class="w-full h-px border-t border-gray-600/30 my-6"></div>
+    </div>
+</main>
