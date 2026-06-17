@@ -1,0 +1,41 @@
+---
+const links = [
+    { name: "Email / ", href: "" },
+    { name: "Github / ", href: "/about" },
+    { name: "LinkedIn / ", href: "/projects" },
+    { name: "Blog", href: "/projects" },
+
+];
+---
+
+<header class="w-full mt-4 flex items-center justify-between px-4 py-2">
+    <div>
+        <div
+            data-scatter
+            data-scatter-text="Big dev"
+            data-scatter-display="inline"
+            data-scatter-color="#ffffff"
+            data-scatter-size="xs"
+            data-scatter-repel="10"
+        >
+        </div>
+    </div>
+    <div class="">
+        <nav class="flex gap-4 justify-center items-center px-6 py-3">
+            {
+                links.map((link) => (
+                    <a href={link.href}>
+                        <span
+                            data-scatter
+                            data-scatter-display="inline"
+                            data-scatter-text={link.name}
+                            data-scatter-color="#ffffff"
+                            data-scatter-size="xs"
+                            data-scatter-repel="10"
+                        />
+                    </a>
+                ))
+            }
+        </nav>
+    </div>
+</header>

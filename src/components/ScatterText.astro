@@ -1,0 +1,413 @@
+---
+// ScatterText.astro — flexible LED dot-matrix scatter text
+//
+// Attributes:
+//   data-scatter                        required, activates effect
+//   data-scatter-color="#ffffff"        dot color (default: currentColor / white)
+//   data-scatter-size="md"             xs | sm | md | lg | xl | 2xl  (default: md)
+//   data-scatter-case="upper"          upper | lower | none  (default: upper)
+//   data-scatter-gap="8"               override dot center-to-center spacing (px)
+//   data-scatter-repel="90"            cursor repel radius (px)
+//   data-scatter-strength="18"         repel force
+//   data-scatter-spring="0.07"         snap-back speed
+//   data-scatter-friction="0.76"       damping (0–1, lower = bouncier)
+//
+// Example:
+//   <p data-scatter data-scatter-size="lg" data-scatter-color="#ff6600">Hello World</p>
+---
+
+<script>
+    const UPPER: Record<string, number[]> = {
+        A: [0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
+        B: [0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110],
+        C: [0b01110, 0b10001, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110],
+        D: [0b11100, 0b10010, 0b10001, 0b10001, 0b10001, 0b10010, 0b11100],
+        E: [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111],
+        F: [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000],
+        G: [0b01110, 0b10001, 0b10000, 0b10111, 0b10001, 0b10001, 0b01111],
+        H: [0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
+        I: [0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
+        J: [0b00111, 0b00010, 0b00010, 0b00010, 0b00010, 0b10010, 0b01100],
+        K: [0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001],
+        L: [0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111],
+        M: [0b10001, 0b11011, 0b10101, 0b10101, 0b10001, 0b10001, 0b10001],
+        N: [0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001, 0b10001],
+        O: [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
+        P: [0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000],
+        Q: [0b01110, 0b10001, 0b10001, 0b10001, 0b10101, 0b10010, 0b01101],
+        R: [0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001],
+        S: [0b01111, 0b10000, 0b10000, 0b01110, 0b00001, 0b00001, 0b11110],
+        T: [0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100],
+        U: [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
+        V: [0b10001, 0b10001, 0b10001, 0b10001, 0b01010, 0b01010, 0b00100],
+        W: [0b10001, 0b10001, 0b10001, 0b10101, 0b10101, 0b11011, 0b10001],
+        X: [0b10001, 0b01010, 0b00100, 0b00100, 0b00100, 0b01010, 0b10001],
+        Y: [0b10001, 0b10001, 0b01010, 0b00100, 0b00100, 0b00100, 0b00100],
+        Z: [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111],
+    };
+
+    // Lowercase — distinct shapes, not just scaled uppercase
+    const LOWER: Record<string, number[]> = {
+        a: [0b00000, 0b00000, 0b01110, 0b00001, 0b01111, 0b10001, 0b01111],
+        b: [0b10000, 0b10000, 0b11110, 0b10001, 0b10001, 0b10001, 0b11110],
+        c: [0b00000, 0b00000, 0b01110, 0b10000, 0b10000, 0b10001, 0b01110],
+        d: [0b00001, 0b00001, 0b01111, 0b10001, 0b10001, 0b10001, 0b01111],
+        e: [0b00000, 0b00000, 0b01110, 0b10001, 0b11111, 0b10000, 0b01110],
+        f: [0b00110, 0b01001, 0b01000, 0b11100, 0b01000, 0b01000, 0b01000],
+        g: [0b00000, 0b01111, 0b10001, 0b10001, 0b01111, 0b00001, 0b01110],
+        h: [0b10000, 0b10000, 0b11110, 0b10001, 0b10001, 0b10001, 0b10001],
+        i: [0b00100, 0b00000, 0b01100, 0b00100, 0b00100, 0b00100, 0b01110],
+        j: [0b00010, 0b00000, 0b00110, 0b00010, 0b00010, 0b10010, 0b01100],
+        k: [0b10000, 0b10000, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010],
+        l: [0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
+        m: [0b00000, 0b00000, 0b11010, 0b10101, 0b10101, 0b10001, 0b10001],
+        n: [0b00000, 0b00000, 0b11110, 0b10001, 0b10001, 0b10001, 0b10001],
+        o: [0b00000, 0b00000, 0b01110, 0b10001, 0b10001, 0b10001, 0b01110],
+        p: [0b00000, 0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000],
+        q: [0b00000, 0b01111, 0b10001, 0b10001, 0b01111, 0b00001, 0b00001],
+        r: [0b00000, 0b00000, 0b10110, 0b11001, 0b10000, 0b10000, 0b10000],
+        s: [0b00000, 0b00000, 0b01110, 0b10000, 0b01110, 0b00001, 0b11110],
+        t: [0b01000, 0b01000, 0b11100, 0b01000, 0b01000, 0b01001, 0b00110],
+        u: [0b00000, 0b00000, 0b10001, 0b10001, 0b10001, 0b10011, 0b01101],
+        v: [0b00000, 0b00000, 0b10001, 0b10001, 0b10001, 0b01010, 0b00100],
+        w: [0b00000, 0b00000, 0b10001, 0b10101, 0b10101, 0b10101, 0b01010],
+        x: [0b00000, 0b00000, 0b10001, 0b01010, 0b00100, 0b01010, 0b10001],
+        y: [0b00000, 0b10001, 0b10001, 0b01111, 0b00001, 0b10001, 0b01110],
+        z: [0b00000, 0b00000, 0b11111, 0b00010, 0b00100, 0b01000, 0b11111],
+    };
+
+    const SHARED: Record<string, number[]> = {
+        "0": [0b01110, 0b10001, 0b10011, 0b10101, 0b11001, 0b10001, 0b01110],
+        "1": [0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
+        "2": [0b01110, 0b10001, 0b00001, 0b00110, 0b01000, 0b10000, 0b11111],
+        "3": [0b11111, 0b00010, 0b00100, 0b00110, 0b00001, 0b10001, 0b01110],
+        "4": [0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010],
+        "5": [0b11111, 0b10000, 0b11110, 0b00001, 0b00001, 0b10001, 0b01110],
+        "6": [0b01110, 0b10000, 0b10000, 0b11110, 0b10001, 0b10001, 0b01110],
+        "7": [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000, 0b01000],
+        "8": [0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110],
+        "9": [0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00001, 0b01110],
+        ".": [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00100],
+        ",": [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00100, 0b01000],
+        "!": [0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00000, 0b00100],
+        "?": [0b01110, 0b10001, 0b00001, 0b00110, 0b00100, 0b00000, 0b00100],
+        ":": [0b00000, 0b00100, 0b00000, 0b00000, 0b00000, 0b00100, 0b00000],
+        ";": [0b00000, 0b00100, 0b00000, 0b00000, 0b00000, 0b00100, 0b01000],
+        "-": [0b00000, 0b00000, 0b00000, 0b11111, 0b00000, 0b00000, 0b00000],
+        "'": [0b00100, 0b00100, 0b01000, 0b00000, 0b00000, 0b00000, 0b00000],
+        '"': [0b01010, 0b01010, 0b10100, 0b00000, 0b00000, 0b00000, 0b00000],
+        "/": [0b00001, 0b00010, 0b00100, 0b00100, 0b01000, 0b10000, 0b00000],
+        "&": [0b01100, 0b10010, 0b10100, 0b01000, 0b10101, 0b10010, 0b01101],
+        "(": [0b00010, 0b00100, 0b01000, 0b01000, 0b01000, 0b00100, 0b00010],
+        ")": [0b01000, 0b00100, 0b00010, 0b00010, 0b00010, 0b00100, 0b01000],
+        "+": [0b00000, 0b00100, 0b00100, 0b11111, 0b00100, 0b00100, 0b00000],
+        "=": [0b00000, 0b00000, 0b11111, 0b00000, 0b11111, 0b00000, 0b00000],
+        "@": [0b01110, 0b10001, 0b10111, 0b10101, 0b10110, 0b10000, 0b01111],
+        "#": [0b01010, 0b01010, 0b11111, 0b01010, 0b11111, 0b01010, 0b01010],
+        " ": [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000],
+    };
+
+    const FONT = { ...UPPER, ...LOWER, ...SHARED };
+
+    const SIZE_PRESETS: Record<
+        string,
+        { dotR: number; gap: number; charGap: number; lineGap: number }
+    > = {
+        xs: { dotR: 0.7, gap: 1.8, charGap: 2, lineGap: 6 },
+        sm: { dotR: 1.8, gap: 6, charGap: 4, lineGap: 7 },
+        md: { dotR: 2.5, gap: 8, charGap: 6, lineGap: 10 },
+        lg: { dotR: 3.5, gap: 11, charGap: 8, lineGap: 14 },
+        xl: { dotR: 5, gap: 15, charGap: 11, lineGap: 18 },
+        "2xl": { dotR: 7, gap: 21, charGap: 15, lineGap: 24 },
+    };
+
+    const COLS = 5;
+    const ROWS = 7;
+
+    interface Dot {
+        ox: number;
+        oy: number;
+        x: number;
+        y: number;
+        vx: number;
+        vy: number;
+    }
+    interface Cfg {
+        dotR: number;
+        gap: number;
+        charGap: number;
+        lineGap: number;
+        repel: number;
+        strength: number;
+        spring: number;
+        friction: number;
+    }
+    interface Instance {
+        canvas: HTMLCanvasElement;
+        ctx: CanvasRenderingContext2D;
+        dots: Dot[];
+        color: string;
+        cfg: Cfg;
+    }
+
+    const mouse = { x: -9999, y: -9999 };
+    const instances: Instance[] = [];
+
+    function getChar(ch: string, caseMode: string): number[] {
+        if (caseMode === "upper") {
+            const k = ch.toUpperCase();
+            return FONT[k] ?? SHARED[ch] ?? SHARED[" "];
+        }
+        if (caseMode === "lower") {
+            const k = ch.toLowerCase();
+            return FONT[k] ?? SHARED[ch] ?? SHARED[" "];
+        }
+        // 'none' — respect original
+        return FONT[ch] ?? SHARED[ch] ?? SHARED[" "];
+    }
+
+    function wrapText(
+        text: string,
+        maxChars: number,
+        caseMode: string,
+    ): string[] {
+        const transformed =
+            caseMode === "upper"
+                ? text.toUpperCase()
+                : caseMode === "lower"
+                  ? text.toLowerCase()
+                  : text;
+
+        const words = transformed.split(" ");
+        const lines: string[] = [];
+        let current = "";
+
+        for (const word of words) {
+            const candidate = current ? current + " " + word : word;
+            if (candidate.length <= maxChars) {
+                current = candidate;
+            } else {
+                if (current) lines.push(current);
+                if (word.length > maxChars) {
+                    for (let i = 0; i < word.length; i += maxChars) {
+                        const chunk = word.slice(i, i + maxChars);
+                        if (i + maxChars < word.length) lines.push(chunk);
+                        else current = chunk;
+                    }
+                } else {
+                    current = word;
+                }
+            }
+        }
+        if (current) lines.push(current);
+        return lines;
+    }
+
+    function buildDots(
+        lines: string[],
+        cfg: Cfg,
+        caseMode: string,
+    ): { dots: Dot[]; width: number; height: number } {
+        const { dotR, gap, charGap, lineGap } = cfg;
+        const charW = COLS * gap + charGap;
+        const charH = ROWS * gap + lineGap;
+        const dots: Dot[] = [];
+
+        lines.forEach((line, li) => {
+            let cx = 0;
+            for (const ch of line) {
+                const bitmap = getChar(ch, caseMode);
+                for (let row = 0; row < ROWS; row++) {
+                    for (let col = 0; col < COLS; col++) {
+                        if (bitmap[row] & (1 << (COLS - 1 - col))) {
+                            const ox = cx + col * gap + dotR;
+                            const oy = li * charH + row * gap + dotR;
+                            dots.push({ ox, oy, x: ox, y: oy, vx: 0, vy: 0 });
+                        }
+                    }
+                }
+                cx += charW;
+            }
+        });
+
+        const maxLen = Math.max(...lines.map((l) => l.length));
+        return {
+            dots,
+            width: maxLen * charW + dotR * 2,
+            height: lines.length * charH + dotR * 2,
+        };
+    }
+
+    function initEl(el: HTMLElement) {
+        el.querySelectorAll("canvas").forEach((c) => c.remove());
+
+        const rawText = (
+            el.getAttribute("data-scatter-text") ??
+            el.textContent ??
+            ""
+        ).trim();
+        const color = el.getAttribute("data-scatter-color") ?? "#ffffff";
+        const sizeName = el.getAttribute("data-scatter-size") ?? "md";
+        const caseMode = el.getAttribute("data-scatter-case") ?? "upper";
+        // inline = size to text content (nav links, badges, headings)
+        // block  = size to parent container width, then wrap (paragraphs, bios)
+        const display = el.getAttribute("data-scatter-display") ?? "block";
+
+        const preset = SIZE_PRESETS[sizeName] ?? SIZE_PRESETS["md"];
+
+        const cfg: Cfg = {
+            dotR: parseFloat(
+                el.getAttribute("data-scatter-dot-r") ?? String(preset.dotR),
+            ),
+            gap: parseFloat(
+                el.getAttribute("data-scatter-gap") ?? String(preset.gap),
+            ),
+            charGap: parseFloat(
+                el.getAttribute("data-scatter-char-gap") ??
+                    String(preset.charGap),
+            ),
+            lineGap: parseFloat(
+                el.getAttribute("data-scatter-line-gap") ??
+                    String(preset.lineGap),
+            ),
+            repel: parseFloat(el.getAttribute("data-scatter-repel") ?? "30"),
+            strength: parseFloat(
+                el.getAttribute("data-scatter-strength") ?? "18",
+            ),
+            spring: parseFloat(
+                el.getAttribute("data-scatter-spring") ?? "0.07",
+            ),
+            friction: parseFloat(
+                el.getAttribute("data-scatter-friction") ?? "0.76",
+            ),
+        };
+
+        const charW = COLS * cfg.gap + cfg.charGap;
+
+        let lines: string[];
+        if (display === "inline") {
+            // Don't wrap — render on one line (or honour explicit \n in text)
+            const transformed =
+                caseMode === "upper"
+                    ? rawText.toUpperCase()
+                    : caseMode === "lower"
+                      ? rawText.toLowerCase()
+                      : rawText;
+            lines = transformed.split("\\n");
+        } else {
+            // Wrap to fit available container width
+            const availW =
+                el.clientWidth ||
+                (el.parentElement?.clientWidth ?? window.innerWidth);
+            const maxChars = Math.max(1, Math.floor(availW / charW));
+            lines = wrapText(rawText, maxChars, caseMode);
+        }
+
+        const { dots, width, height } = buildDots(lines, cfg, caseMode);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.style.cssText =
+            "display:block;pointer-events:none;position:absolute;top:0;left:0;";
+        canvas.setAttribute("aria-hidden", "true");
+
+        el.style.color = "transparent";
+        el.style.position = "relative";
+        el.style.display = display === "inline" ? "inline-block" : "block";
+        el.style.width = width + "px";
+        el.style.height = height + "px";
+
+        el.insertAdjacentElement("afterbegin", canvas);
+        instances.push({
+            canvas,
+            ctx: canvas.getContext("2d")!,
+            dots,
+            color,
+            cfg,
+        });
+    }
+
+    function init() {
+        instances.length = 0;
+        document
+            .querySelectorAll<HTMLElement>("[data-scatter]")
+            .forEach(initEl);
+    }
+
+    function tick() {
+        for (const { canvas, ctx, dots, color, cfg } of instances) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const rect = canvas.getBoundingClientRect();
+            const mx = mouse.x - rect.left - window.scrollX;
+            const my = mouse.y - rect.top - window.scrollY;
+
+            for (const d of dots) {
+                const dx = d.x - mx;
+                const dy = d.y - my;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < cfg.repel && dist > 0) {
+                    const force = (cfg.repel - dist) / cfg.repel;
+                    d.vx += (dx / dist) * force * cfg.strength;
+                    d.vy += (dy / dist) * force * cfg.strength;
+
+                    const angle = Math.atan2(dy, dx);
+                    const stretch = 1 + force * 3.5;
+                    ctx.save();
+                    ctx.translate(d.x, d.y);
+                    ctx.rotate(angle);
+                    ctx.beginPath();
+                    ctx.ellipse(
+                        0,
+                        0,
+                        cfg.dotR * stretch,
+                        cfg.dotR * 0.55,
+                        0,
+                        0,
+                        Math.PI * 2,
+                    );
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = 0.35 + force * 0.65;
+                    ctx.fill();
+                    ctx.restore();
+                    ctx.globalAlpha = 1;
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(d.x, d.y, cfg.dotR, 0, Math.PI * 2);
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                }
+
+                d.vx += (d.ox - d.x) * cfg.spring;
+                d.vy += (d.oy - d.y) * cfg.spring;
+                d.vx *= cfg.friction;
+                d.vy *= cfg.friction;
+                d.x += d.vx;
+                d.y += d.vy;
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+
+    window.addEventListener("mousemove", (e) => {
+        mouse.x = e.clientX + window.scrollX;
+        mouse.y = e.clientY + window.scrollY;
+    });
+    window.addEventListener("mouseleave", () => {
+        mouse.x = -9999;
+        mouse.y = -9999;
+    });
+
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(init, 200);
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+        init();
+        requestAnimationFrame(tick);
+    });
+</script>
