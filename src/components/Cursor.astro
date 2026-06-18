@@ -1,0 +1,182 @@
+---
+// Cursor.astro — premium custom cursor for the dot-matrix / terminal aesthetic.
+//
+// A precise white dot that tracks instantly, plus a thin ring that trails with
+// easing and expands + turns orange over interactive elements (matching the
+// nav-link hover accent). The ring also frames the scatter-text repel zone.
+//
+// Falls back to the native cursor on touch / coarse-pointer devices, and snaps
+// (no trailing) for users who prefer reduced motion. Drop <Cursor /> once in
+// your Layout.
+---
+
+<div id="cursor" aria-hidden="true">
+    <div class="cursor-ring"></div>
+    <div class="cursor-dot"></div>
+</div>
+
+<style>
+    /* Hide the native cursor only where we actually render the custom one. */
+    @media (hover: hover) and (pointer: fine) {
+        :global(html),
+        :global(*) {
+            cursor: none !important;
+        }
+    }
+
+    /* No custom cursor on touch / coarse pointers — leave the native one. */
+    @media (hover: none), (pointer: coarse) {
+        #cursor {
+            display: none;
+        }
+    }
+
+    #cursor {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 9999;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    #cursor.is-visible {
+        opacity: 1;
+    }
+
+    .cursor-dot,
+    .cursor-ring {
+        position: absolute;
+        top: 0;
+        left: 0;
+        border-radius: 9999px;
+        will-change: transform;
+        transform: translate3d(-50%, -50%, 0);
+    }
+
+    .cursor-dot {
+        width: 6px;
+        height: 6px;
+        background: #ffffff;
+        transition:
+            width 0.2s ease,
+            height 0.2s ease,
+            background-color 0.25s ease;
+    }
+
+    .cursor-ring {
+        width: 34px;
+        height: 34px;
+        /* border: 1px solid rgba(255, 255, 255, 0.4); */
+        transition:
+            width 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+            height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+            border-color 0.25s ease,
+            background-color 0.25s ease;
+    }
+
+    /* Over interactive elements: grow + orange accent. */
+    #cursor.is-hover .cursor-ring {
+        width: 54px;
+        height: 54px;
+        border-color: orange;
+        background: rgba(255, 165, 0, 0.08);
+    }
+    #cursor.is-hover .cursor-dot {
+        width: 4px;
+        height: 4px;
+        background: orange;
+    }
+
+    /* Pressed: a quick contraction for tactile feedback. */
+    #cursor.is-down .cursor-ring {
+        width: 26px;
+        height: 26px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .cursor-ring,
+        .cursor-dot {
+            transition:
+                border-color 0.2s ease,
+                background-color 0.2s ease;
+        }
+    }
+</style>
+
+<script>
+    const root = document.getElementById("cursor");
+    const fine = window.matchMedia("(hover: hover) and (pointer: fine)");
+
+    if (root && fine.matches) {
+        const dot = root.querySelector(".cursor-dot") as HTMLElement;
+        const ring = root.querySelector(".cursor-ring") as HTMLElement;
+        const reduce = window.matchMedia(
+            "(prefers-reduced-motion: reduce)",
+        ).matches;
+
+        // What the ring grows around.
+        const INTERACTIVE =
+            "a, button, input, textarea, select, label, summary, [data-cursor], [role='button']";
+
+        let mouseX = -100;
+        let mouseY = -100;
+        let ringX = -100;
+        let ringY = -100;
+        let visible = false;
+
+        const place = (el: HTMLElement, x: number, y: number) => {
+            el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+        };
+
+        window.addEventListener("mousemove", (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            place(dot, mouseX, mouseY); // dot is exact, no easing
+            if (!visible) {
+                visible = true;
+                root.classList.add("is-visible");
+            }
+        });
+
+        // Hide when the pointer leaves the window entirely.
+        document.addEventListener("mouseleave", () => {
+            visible = false;
+            root.classList.remove("is-visible");
+        });
+        document.addEventListener("mouseenter", () => {
+            visible = true;
+            root.classList.add("is-visible");
+        });
+
+        window.addEventListener("mousedown", () =>
+            root.classList.add("is-down"),
+        );
+        window.addEventListener("mouseup", () =>
+            root.classList.remove("is-down"),
+        );
+
+        // Hover state via delegation; relatedTarget check avoids flicker when
+        // moving between children of the same interactive element.
+        document.addEventListener("mouseover", (e) => {
+            if ((e.target as HTMLElement)?.closest?.(INTERACTIVE)) {
+                root.classList.add("is-hover");
+            }
+        });
+        document.addEventListener("mouseout", (e) => {
+            const to = e.relatedTarget as HTMLElement | null;
+            if (!to || !to.closest?.(INTERACTIVE)) {
+                root.classList.remove("is-hover");
+            }
+        });
+
+        const tick = () => {
+            const ease = reduce ? 1 : 0.18;
+            ringX += (mouseX - ringX) * ease;
+            ringY += (mouseY - ringY) * ease;
+            place(ring, ringX, ringY);
+            requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    }
+</script>

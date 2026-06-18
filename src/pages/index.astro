@@ -31,12 +31,10 @@ const aboutWidth = 600;
 
 <Layout>
 	<main class="mt-8 flex items-center justify-between md:mt-15">
-		<!-- Portrait + text: stacked on mobile, side by side from md up -->
 		<div
 			class="flex w-[70%] flex-col md:flex-row gap-8 md:gap-12 md:items-center"
 		>
 			<div class="w-full md:w-full">
-				<!-- Heading scales up with the viewport; block mode reflows to fit -->
 				<Scatter
 					as="h1"
 					text="Emmanuel Adewale"
@@ -53,8 +51,6 @@ const aboutWidth = 600;
 					display="inline"
 					class="text-red-400"
 				/>
-
-				<!-- One Scatter per paragraph: smaller canvases, lazy-animated -->
 				<div class="mt-6 w-full flex flex-col gap-4">
 					{
 						aboutChunks.map((chunk) => (
