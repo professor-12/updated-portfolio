@@ -1,28 +1,77 @@
 ---
-import NavBar from '../components/NavBar.astro';
-import ScatterText from '../components/ScatterText.astro';
-import Cursor from '../components/Cursor.astro';
-import PathTrain from '../components/PathTrain.astro';
-import DrawHint from '../components/DrawHint.astro';
-import '../styles/global.css';
+import NavBar from "../components/NavBar.astro";
+import ScatterText from "../components/ScatterText.astro";
+import Cursor from "../components/Cursor.astro";
+import PathTrain from "../components/PathTrain.astro";
+import DrawHint from "../components/DrawHint.astro";
+import "../styles/global.css";
 ---
+
 <!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="icon" href="/favicon.ico" />
+
 		<meta name="generator" content={Astro.generator} />
-		<title>Emmanuel's Chronicles</title>
+
+		<title>
+			Emmanuel's Chronicles — Engineering Notes, System Design & Product
+			Building
+		</title>
+
+		<meta
+			name="description"
+			content="Thoughts on backend engineering, system design, infrastructure, AI tooling, performance testing, and the journey of building scalable products."
+		/>
+
+		<meta
+			name="keywords"
+			content="Emmanuel Adewale, Backend Engineer, Software Engineer, System Design, Infrastructure, DevOps, AI Agents, Engineering Blog, Product Engineering"
+		/>
+
+		<meta name="author" content="Emmanuel Adewale" />
+
+		<!-- Open Graph -->
+		<meta
+			property="og:title"
+			content="Emmanuel's Chronicles — Engineering Notes, System Design & Product Building"
+		/>
+		<meta
+			property="og:description"
+			content="Insights on backend engineering, infrastructure, AI tooling, performance optimization, and building products that scale."
+		/>
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://badejoemmanuel.netlify.app" />
+		<meta
+			property="og:image"
+			content="https://badejoemmanuel.netlify.app/og-image.png"
+		/>
+
+		<!-- Twitter -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta
+			name="twitter:title"
+			content="Emmanuel's Chronicles — Engineering Notes, System Design & Product Building"
+		/>
+		<meta
+			name="twitter:description"
+			content="Insights on backend engineering, infrastructure, AI tooling, performance optimization, and building products that scale."
+		/>
+		<meta
+			name="twitter:image"
+			content="https://badejoemmanuel.netlify.app/og-image.png"
+		/>
 	</head>
 	<body class="bg-black max-w-[70%] mx-auto">
 		<Cursor />
 		<PathTrain />
 		<DrawHint />
 		<ScatterText />
-		<NavBar/>
+		<NavBar />
 		<slot />
 	</body>
 </html>
-
