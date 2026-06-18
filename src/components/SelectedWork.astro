@@ -1,5 +1,6 @@
 ---
 import Scatter from "./Scatter.astro";
+import Card from "./utils/Card.astro";
 
 const subtitle =
     `MY CURRENT JOB, THE ROLE BEFORE IT, A RESEARCH PROJECT THAT WON
@@ -10,7 +11,7 @@ BEST PAPER, AND THE ENGINE RENDERING THIS PAGE AS YOU READ IT.`
 
 const experiences = [
     {
-        expType: "",
+        expType: "CURRENT ROLE",
         title: "NATIVEBRANDS",
         role: "BACKEND LEAD",
         points: [
@@ -19,8 +20,37 @@ const experiences = [
             "DRIVE PERFORMANCE TESTING AND OPTIMIZATION EFFORTS TO IDENTIFY BOTTLENECKS BEFORE THEY IMPACT CUSTOMERS.",
             "HANDLE DAY-TO-DAY OPERATIONAL CHALLENGES, FROM DEBUGGING PRODUCTION ISSUES TO IMPROVING DEPLOYMENT AND MONITORING WORKFLOWS.",
         ],
-        tags: ["FRONTEND","BACKEND","PERFORMANCE TESTING","INFRASTRUCTURE","INFRASTRUCTURE","API DESIGN"],
+        tags: [
+            "FRONTEND",
+            "BACKEND",
+            "PERFORMANCE TESTING",
+            "INFRASTRUCTURE",
+            "INFRASTRUCTURE",
+            "API DESIGN",
+        ],
         desc: "NATIVEBRANDS IS WHERE I GREW FROM FRONTEND ENGINEER TO BACKEND LEAD. I STARTED BY BUILDING HIGH-PERFORMANCE WEB EXPERIENCES, COMPLEX ANIMATIONS, AND CUSTOMER-FACING PRODUCTS. TODAY, I FOCUS ON THE SYSTEMS BEHIND THOSE PRODUCTS — MAINTAINING CRITICAL SERVICES, IMPROVING PERFORMANCE, BUILDING APIS, AND ENSURING THE PLATFORM SCALES RELIABLY AS THE BUSINESS GROWS.",
+    },
+    {
+        expType: "PERSONAL PROJECT",
+        title: "RENDER LITE",
+        role: "TECHNICAL LEAD",
+        points: [
+            "COLLABORATE WITH ENGINEERS ACROSS DIFFERENT DISCIPLINES TO DESIGN AND BUILD AUTONOMOUS DEPLOYMENT WORKFLOWS.",
+            "DEVELOP AI-DRIVEN SYSTEMS THAT CAN ANALYZE, PLAN, AND EXECUTE INFRASTRUCTURE TASKS WITH MINIMAL HUMAN INTERVENTION.",
+            "BUILD THE BACKEND SERVICES, AGENT WORKFLOWS, AND INTEGRATIONS REQUIRED TO CONNECT CLOUD PROVIDERS, DEPLOYMENT TOOLS, AND DEVELOPMENT ENVIRONMENTS.",
+            "DRIVE PRODUCT AND ENGINEERING DISCUSSIONS TO ENSURE THE PLATFORM REMAINS DEVELOPER-FIRST WHILE SCALING ITS AUTONOMOUS CAPABILITIES.",
+        ],
+        tags: [
+            "AI AGENTS",
+            "INFRASTRUCTURE",
+            "DEVOPS",
+            "BACKEND",
+            "TECHNICAL LEADERSHIP",
+        ],
+        desc: "RENDERLITE IS A PERSONAL PROJECT I BUILT WITH A SMALL TEAM OF FRIENDS TO REIMAGINE HOW DEVELOPERS MANAGE DEPLOYMENTS. THE GOAL IS SIMPLE: CREATE AN AI-POWERED DEPLOYMENT ENGINEER THAT CAN UNDERSTAND, EXECUTE, AND AUTOMATE DEPLOYMENT WORKFLOWS — THINK OF IT AS CURSOR, BUT FOR INFRASTRUCTURE AND DEPLOYMENTS.",
+        links: [
+            {name: "Source Code", href: "https://github.com"},{name: "Live link",href:"https://google.com"}
+        ]
     },
 ];
 ---
@@ -65,5 +95,24 @@ const experiences = [
         </div>
 
         <div class="w-full h-px border-t border-gray-600/30 my-6"></div>
+
+        <!-- Experience cards -->
+        <section class="w-full">
+            {
+                experiences.map((exp, i) => (
+                    <Card
+                        index={String(i + 1).padStart(2, "0")}
+                        label={exp.expType || "EXPERIENCE"}
+                        title={exp.title}
+                        role={exp.role}
+                        desc={exp.desc}
+                        points={exp.points}
+                        tags={exp.tags}
+                    />
+                ))
+            }
+            <!-- closing rule under the last card, matching the design -->
+            <div class="w-full border-t border-gray-600/30"></div>
+        </section>
     </div>
 </main>

@@ -1,0 +1,127 @@
+---
+import Scatter from "../Scatter.astro";
+
+interface Props {
+    /** Left-column index, e.g. "01". */
+    index?: string;
+    /** Left-column label, e.g. "CURRENT ROLE". */
+    label?: string;
+    /** Big dot-matrix headline, e.g. "KITME". */
+    title: string;
+    /** Sub-headline / position, e.g. "LEAD PRODUCT ENGINEER". */
+    role?: string;
+    /** Intro paragraph. */
+    desc?: string;
+    /** Bullet points. */
+    points?: string[];
+    /** Tag pills. */
+    tags?: string[];
+}
+
+const {
+    index = "",
+    label = "",
+    title,
+    role = "",
+    desc = "",
+    points = [],
+    tags = [],
+} = Astro.props;
+
+// Shared tuning for body-copy scatter text, matching the rest of the site.
+// `as const` keeps `size` a literal so it satisfies the Scatter prop type.
+const body = {
+    size: "xs",
+    gap: 2.1,
+    dotR: 1,
+    charGap: 3,
+    lineGap: 6,
+    wordGap: -1,
+    strength: 14,
+    spring: 0.1,
+    repel: 10,
+} as const;
+---
+
+<article class="py-8 md:py-12">
+    <div
+        class="grid grid-cols-1 gap-5 md:grid-cols-[13rem_1fr] md:gap-10 lg:gap-14"
+    >
+        <!-- Meta column: row on mobile, stacked on desktop -->
+        <div
+            class="flex items-center gap-4 md:flex-col md:items-start md:gap-1.5"
+        >
+            {
+                index && (
+                    <Scatter
+                        as="p"
+                        size="xs"
+                        text={index}
+                        display="inline"
+                        class="font-mono text-[0.7rem] tracking-[0.2em] text-gray-500"
+                    >
+                        {index}
+                    </Scatter>
+                )
+            }
+            {
+                label && (
+                    <Scatter
+                        as="p"
+                        size="xs"
+                        text={label}
+                        display="inline"
+                        class="font-mono text-[0.7rem] tracking-[0.2em] text-gray-500"
+                    >
+                        {label}
+                    </Scatter>
+                )
+            }
+        </div>
+
+        <!-- Content column -->
+        <div class="flex min-w-0 flex-col gap-5">
+            <Scatter as="h2" text={title} display="inline" />
+
+            {role && <Scatter as="p" text={role} display="inline" {...body} dotR={0.8} />}
+
+            {desc && <Scatter text={desc} {...body} />}
+
+            {
+                points.length > 0 && (
+                    <ul class="flex flex-col gap-3">
+                        {points.map((point) => (
+                            <li class="flex items-start gap-3">
+                                <span class="mt-[0.45rem] h-1 w-1 shrink-0 rounded-full bg-white/60" />
+                                <div class="min-w-0 flex-1">
+                                    <Scatter text={point}  {...body} />
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )
+            }
+
+            {
+                tags.length > 0 && (
+                    <div class="mt-1 flex flex-wrap gap-2.5">
+                        {tags.map((tag) => (
+                            <span class="rounded-lg border border-gray-600/60 bg-white/[0.02] px-3 pt-2.5 leading-none">
+                                <Scatter
+                                    text={tag}
+                                    display="inline"
+                                    size="xs"
+                                    gap={1.8}
+                                    dotR={0.9}
+                                    charGap={2}
+                                    wordGap={-1}
+                                    repel={8}
+                                />
+                            </span>
+                        ))}
+                    </div>
+                )
+            }
+        </div>
+    </div>
+</article>
