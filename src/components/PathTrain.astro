@@ -1,0 +1,393 @@
+---
+// PathTrain.astro — draw a path anywhere, a little train rides it, then the
+// path disappears as the train consumes it.
+//
+// Interaction:
+//   • Press and DRAG on empty space to draw a glowing dotted trail.
+//   • Release — a glowing train runs along the trail, eating the dots behind it.
+//   • Plain clicks still work (drawing only starts past a small drag threshold,
+//     and the click that would follow a drag is swallowed).
+//
+// Desktop / fine-pointer only (touch keeps normal scrolling). Honours
+// prefers-reduced-motion. The overlay is pointer-events:none so it never blocks
+// the rest of the app. Drop <PathTrain /> once in your Layout.
+---
+
+<canvas id="path-train" aria-hidden="true"></canvas>
+
+<style>
+    #path-train {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 9998; /* just under the custom cursor (9999) */
+        pointer-events: none;
+    }
+    /* Stop text selection while a trail is being drawn. */
+    :global(body.path-drawing) {
+        user-select: none;
+    }
+</style>
+
+<script>
+    type Pt = { x: number; y: number };
+
+    const canvas = document.getElementById(
+        "path-train",
+    ) as HTMLCanvasElement | null;
+
+    const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const reduce = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (canvas && fine && !reduce) {
+        const ctx = canvas.getContext("2d")!;
+
+        // ---- tuning -------------------------------------------------------
+        const DOT_STEP = 6; // spacing between trail dots (px)
+        const DOT_R = 1.5; // trail dot radius
+        const DRAG_THRESHOLD = 8; // px before a drag becomes a drawing
+        const SPEED = 620; // train speed (px / second)
+        const CARS = 5; // train head + carriages
+        const CAR_GAP = 13; // spacing between cars (px)
+        const TRAIN_LEN = CARS * CAR_GAP;
+        const HEAD = "#ff9d2f"; // orange accent (matches hover colour)
+        const MAX_RIDES = 8;
+        const SPARKS_PER_FRAME = 2; // sparks emitted at the head each frame
+        const SPARK_LIFE = 0.5; // seconds
+        const TRAIN_REPEL = 46; // radius the head pushes scatter dots (px)
+
+        // ---- canvas sizing ------------------------------------------------
+        let dpr = 1;
+        function resize() {
+            dpr = Math.min(window.devicePixelRatio || 1, 2);
+            canvas.width = Math.floor(window.innerWidth * dpr);
+            canvas.height = Math.floor(window.innerHeight * dpr);
+            canvas.style.width = window.innerWidth + "px";
+            canvas.style.height = window.innerHeight + "px";
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        resize();
+        window.addEventListener("resize", resize);
+
+        // ---- a single ride (one drawn path + its train) -------------------
+        interface Ride {
+            pts: Pt[]; // evenly resampled points (DOT_STEP apart)
+            total: number; // arc length
+            head: number; // train head position along the path (px)
+            drawing: boolean; // still being drawn by the user?
+            raw: Pt[]; // raw captured points (only while drawing)
+        }
+        const rides: Ride[] = [];
+
+        // Sparks puffed off the train head.
+        interface Spark {
+            x: number;
+            y: number;
+            vx: number;
+            vy: number;
+            life: number; // remaining seconds
+        }
+        const sparks: Spark[] = [];
+
+        // Shared channel: scatter-text reads these to let the train push its dots
+        // around as it passes. Page coordinates (client + scroll), like the mouse.
+        (window as any).__pathTrainRepellers = [];
+
+        // Resample raw points to evenly spaced points (clean arc-length motion).
+        function resample(raw: Pt[], step: number): Pt[] {
+            if (raw.length < 2) return raw.map((p) => ({ x: p.x, y: p.y }));
+            const out: Pt[] = [{ x: raw[0].x, y: raw[0].y }];
+            let toNext = step;
+            let px = raw[0].x;
+            let py = raw[0].y;
+            for (let i = 1; i < raw.length; i++) {
+                let dx = raw[i].x - px;
+                let dy = raw[i].y - py;
+                let seg = Math.hypot(dx, dy);
+                if (seg === 0) continue;
+                const ux = dx / seg;
+                const uy = dy / seg;
+                while (seg >= toNext) {
+                    px += ux * toNext;
+                    py += uy * toNext;
+                    out.push({ x: px, y: py });
+                    seg -= toNext;
+                    toNext = step;
+                }
+                toNext -= seg;
+                px = raw[i].x;
+                py = raw[i].y;
+            }
+            return out;
+        }
+
+        // Position + tangent at arc length s along an evenly-spaced ride.
+        function posAt(ride: Ride, s: number) {
+            const pts = ride.pts;
+            const last = pts.length - 1;
+            const idx = s / DOT_STEP;
+            let i = Math.floor(idx);
+            if (i < 0) i = 0;
+            if (i >= last) {
+                const a = pts[last];
+                const b = pts[Math.max(0, last - 1)];
+                return { x: a.x, y: a.y, ang: Math.atan2(a.y - b.y, a.x - b.x) };
+            }
+            const f = idx - i;
+            const a = pts[i];
+            const b = pts[i + 1];
+            return {
+                x: a.x + (b.x - a.x) * f,
+                y: a.y + (b.y - a.y) * f,
+                ang: Math.atan2(b.y - a.y, b.x - a.x),
+            };
+        }
+
+        // ---- input: drag to draw -----------------------------------------
+        let down = false;
+        let started = false; // crossed the drag threshold → drawing
+        let startX = 0;
+        let startY = 0;
+        let active: Ride | null = null;
+        let suppressClick = false;
+
+        function isFormField(t: EventTarget | null) {
+            const el = t as HTMLElement | null;
+            return !!el?.closest?.("input, textarea, select, [contenteditable]");
+        }
+
+        window.addEventListener("mousedown", (e) => {
+            if (e.button !== 0 || isFormField(e.target)) return;
+            down = true;
+            started = false;
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        window.addEventListener("mousemove", (e) => {
+            if (!down) return;
+
+            if (!started) {
+                if (Math.hypot(e.clientX - startX, e.clientY - startY) < DRAG_THRESHOLD)
+                    return;
+                // begin a new drawing
+                started = true;
+                document.body.classList.add("path-drawing");
+                active = {
+                    pts: [],
+                    total: 0,
+                    head: 0,
+                    drawing: true,
+                    raw: [{ x: startX, y: startY }],
+                };
+                rides.push(active);
+                if (rides.length > MAX_RIDES) rides.shift();
+                ensureLoop();
+                window.dispatchEvent(new Event("pathtrain:start"));
+            }
+
+            if (active) {
+                e.preventDefault(); // suppress text selection while drawing
+                active.raw.push({ x: e.clientX, y: e.clientY });
+                active.pts = resample(active.raw, DOT_STEP);
+                active.total = (active.pts.length - 1) * DOT_STEP;
+            }
+        });
+
+        window.addEventListener("mouseup", () => {
+            if (started && active) {
+                // finalise: hand the path to its train
+                active.drawing = false;
+                active.head = 0;
+                if (active.pts.length < 2) {
+                    const i = rides.indexOf(active);
+                    if (i >= 0) rides.splice(i, 1);
+                }
+                suppressClick = true; // a drag shouldn't trigger a click
+            }
+            down = false;
+            started = false;
+            active = null;
+            document.body.classList.remove("path-drawing");
+        });
+
+        // Swallow the click that follows a drawing drag (avoids stray nav).
+        window.addEventListener(
+            "click",
+            (e) => {
+                if (suppressClick) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    suppressClick = false;
+                }
+            },
+            true,
+        );
+
+        // ---- render -------------------------------------------------------
+        function drawTrail(ride: Ride, fromIndex: number) {
+            // Batch all remaining trail dots into a single fill.
+            const path = new Path2D();
+            for (let i = fromIndex; i < ride.pts.length; i++) {
+                const p = ride.pts[i];
+                path.moveTo(p.x + DOT_R, p.y);
+                path.arc(p.x, p.y, DOT_R, 0, Math.PI * 2);
+            }
+            ctx.fillStyle = "rgba(255,255,255,0.5)";
+            ctx.fill(path);
+        }
+
+        function drawTrain(ride: Ride, alpha: number) {
+            // Glowing connector body through the car centres.
+            const centres: { x: number; y: number }[] = [];
+            for (let k = 0; k < CARS; k++) {
+                const s = ride.head - k * CAR_GAP;
+                if (s < 0) break;
+                centres.push(posAt(ride, s));
+            }
+            if (!centres.length) return;
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+
+            if (centres.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(centres[0].x, centres[0].y);
+                for (let k = 1; k < centres.length; k++)
+                    ctx.lineTo(centres[k].x, centres[k].y);
+                ctx.strokeStyle = "rgba(255,157,47,0.35)";
+                ctx.lineWidth = 5;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = HEAD;
+                ctx.stroke();
+            }
+
+            // Cars: bright orange head fading to white tail.
+            for (let k = 0; k < centres.length; k++) {
+                const c = centres[k];
+                const t = k / CARS;
+                const r = 5 - t * 2.4;
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, Math.max(1.5, r), 0, Math.PI * 2);
+                ctx.fillStyle =
+                    k === 0 ? HEAD : `rgba(255,${200 + k * 8},${160 + k * 16},1)`;
+                ctx.shadowBlur = k === 0 ? 16 : 8;
+                ctx.shadowColor = HEAD;
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // ---- loop ---------------------------------------------------------
+        let running = false;
+        let lastT = 0;
+
+        function spawnSparks(x: number, y: number, ang: number) {
+            for (let n = 0; n < SPARKS_PER_FRAME; n++) {
+                // shoot mostly backwards from the head, with spread
+                const a = ang + Math.PI + (Math.random() - 0.5) * 1.6;
+                const sp = 40 + Math.random() * 90;
+                sparks.push({
+                    x,
+                    y,
+                    vx: Math.cos(a) * sp,
+                    vy: Math.sin(a) * sp - 20,
+                    life: SPARK_LIFE * (0.6 + Math.random() * 0.4),
+                });
+            }
+        }
+
+        function updateSparks(dt: number) {
+            ctx.save();
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = HEAD;
+            for (let i = sparks.length - 1; i >= 0; i--) {
+                const s = sparks[i];
+                s.life -= dt;
+                if (s.life <= 0) {
+                    sparks.splice(i, 1);
+                    continue;
+                }
+                s.vy += 140 * dt; // gravity
+                s.x += s.vx * dt;
+                s.y += s.vy * dt;
+                const k = s.life / SPARK_LIFE;
+                ctx.globalAlpha = Math.max(0, Math.min(1, k));
+                ctx.fillStyle = k > 0.5 ? HEAD : "#ffd9a0";
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, 1.2 * k + 0.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function frame(t: number) {
+            const dt = lastT ? Math.min((t - lastT) / 1000, 0.05) : 0;
+            lastT = t;
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+            const repellers: { x: number; y: number }[] = [];
+            const sx = window.scrollX;
+            const sy = window.scrollY;
+
+            for (let i = rides.length - 1; i >= 0; i--) {
+                const ride = rides[i];
+                if (ride.pts.length < 2) continue;
+
+                if (ride.drawing) {
+                    drawTrail(ride, 0);
+                    continue;
+                }
+
+                ride.head += SPEED * dt;
+
+                // Trail ahead of the head only — behind it is "eaten".
+                const fromIndex = Math.max(0, Math.ceil(ride.head / DOT_STEP));
+                if (fromIndex < ride.pts.length) drawTrail(ride, fromIndex);
+
+                // Train fades out once it slides off the (now empty) end.
+                const over = ride.head - ride.total;
+                const alpha = over > 0 ? Math.max(0, 1 - over / TRAIN_LEN) : 1;
+                drawTrain(ride, alpha);
+
+                // Head emits sparks + pushes scatter dots while still on the path.
+                if (over <= 0) {
+                    const h = posAt(ride, ride.head);
+                    if (dt > 0) spawnSparks(h.x, h.y, h.ang);
+                    repellers.push({ x: h.x + sx, y: h.y + sy });
+                }
+
+                if (ride.head - TRAIN_LEN > ride.total) rides.splice(i, 1);
+            }
+
+            updateSparks(dt);
+
+            // Publish head positions for the scatter engine to react to.
+            (window as any).__pathTrainRepellers = repellers;
+
+            // Keep running while there's anything to show.
+            const busy = rides.length > 0 || sparks.length > 0;
+            if (busy) {
+                requestAnimationFrame(frame);
+            } else {
+                running = false;
+                lastT = 0;
+                (window as any).__pathTrainRepellers = [];
+                ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            }
+        }
+
+        function ensureLoop() {
+            if (!running) {
+                running = true;
+                lastT = 0;
+                requestAnimationFrame(frame);
+            }
+        }
+    }
+</script>

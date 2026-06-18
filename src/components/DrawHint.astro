@@ -1,0 +1,142 @@
+---
+// DrawHint.astro — minimal one-time nudge telling users they can draw a path.
+// Appears once (remembered via localStorage), auto-dismisses, and disappears
+// the moment the user actually starts drawing. Desktop / fine-pointer only.
+---
+
+<div id="draw-hint" role="status">
+    <span class="">🙋🏽‍♂️</span>
+    <span class="msg">Heyyyy!! — try <b>drawing</b> anywhere on the screen</span>
+    <button class="close" aria-label="Dismiss">×</button>
+</div>
+
+<style>
+    /* Drawing is a desktop interaction — don't show this on touch. */
+    @media (hover: none), (pointer: coarse) {
+        #draw-hint {
+            display: none;
+        }
+    }
+
+    #draw-hint {
+        position: fixed;
+        bottom: 1.5rem;
+        left: 50%;
+        z-index: 9997;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.55rem 0.55rem 0.55rem 0.9rem;
+        font-family: ui-monospace, "SF Mono", monospace;
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+        color: rgba(255, 255, 255, 0.82);
+        background: rgba(10, 10, 10, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 9999px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        /* hidden until shown; never blocks drawing (only the button is clickable) */
+        opacity: 0;
+        transform: translate(-50%, 1rem);
+        pointer-events: none;
+        transition:
+            opacity 0.5s ease,
+            transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #draw-hint.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+    #draw-hint.hide {
+        opacity: 0;
+        transform: translate(-50%, 1rem);
+    }
+
+    #draw-hint b {
+        color: #ff9d2f;
+        font-weight: 600;
+    }
+
+    .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 9999px;
+        background: #ff9d2f;
+        box-shadow: 0 0 8px #ff9d2f;
+        animation: draw-hint-pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes draw-hint-pulse {
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.35;
+            transform: scale(0.65);
+        }
+    }
+
+    .close {
+        all: unset;
+        pointer-events: auto; /* only the button is interactive */
+        width: 1.15rem;
+        height: 1.15rem;
+        display: grid;
+        place-items: center;
+        font-size: 0.95rem;
+        line-height: 1;
+        color: rgba(255, 255, 255, 0.45);
+        border-radius: 9999px;
+        transition: color 0.2s ease;
+    }
+    .close:hover {
+        color: #fff;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        #draw-hint {
+            transition: opacity 0.3s ease;
+        }
+        #draw-hint.show {
+            transform: translate(-50%, 0);
+        }
+        .dot {
+            animation: none;
+        }
+    }
+</style>
+
+<script>
+    const hint = document.getElementById("draw-hint");
+    const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const KEY = "drawHintSeen";
+
+    let seen = false;
+    try {
+        seen = !!localStorage.getItem(KEY);
+    } catch {}
+
+    if (hint && fine && !seen) {
+        let hidden = false;
+        const hide = () => {
+            if (hidden) return;
+            hidden = true;
+            try {
+                localStorage.setItem(KEY, "1");
+            } catch {}
+            hint.classList.remove("show");
+            hint.classList.add("hide");
+            window.removeEventListener("pathtrain:start", hide);
+        };
+
+        const showTimer = setTimeout(() => hint.classList.add("show"), 1200);
+        const autoHide = setTimeout(hide, 9000);
+
+        hint.querySelector(".close")?.addEventListener("click", hide);
+        // Vanish the instant the user actually starts drawing.
+        window.addEventListener("pathtrain:start", hide);
+    }
+</script>

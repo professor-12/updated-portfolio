@@ -435,7 +435,18 @@
             .forEach(initEl);
     }
 
+    // The PathTrain effect publishes its head positions here so the train can
+    // shove scatter dots aside as it passes through text. Page coordinates.
+    const TRAIN_REPEL = 46;
+    const TRAIN_REPEL2 = TRAIN_REPEL * TRAIN_REPEL;
+    const TRAIN_STRENGTH = 26;
+
     function tick() {
+        const trainReps =
+            ((window as any).__pathTrainRepellers as
+                | { x: number; y: number }[]
+                | undefined) ?? [];
+
         for (const inst of instances) {
             // Skip anything scrolled out of view — the biggest win for long,
             // chunked text where most paragraphs are off-screen.
@@ -454,8 +465,23 @@
                 my > -cfg.repel &&
                 my < canvas.height + cfg.repel;
 
-            // Settled + cursor away => nothing changes, keep last frame painted.
-            if (inst.settled && !mouseNear) continue;
+            // Train heads currently over this canvas (converted to local coords).
+            let localTrain: { x: number; y: number }[] | null = null;
+            for (const rp of trainReps) {
+                const lx = rp.x - rect.left - window.scrollX;
+                const ly = rp.y - rect.top - window.scrollY;
+                if (
+                    lx > -TRAIN_REPEL &&
+                    lx < canvas.width + TRAIN_REPEL &&
+                    ly > -TRAIN_REPEL &&
+                    ly < canvas.height + TRAIN_REPEL
+                ) {
+                    (localTrain ??= []).push({ x: lx, y: ly });
+                }
+            }
+
+            // Settled + nothing nearby => keep last frame painted.
+            if (inst.settled && !mouseNear && !localTrain) continue;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -496,6 +522,21 @@
                     restPath.arc(d.x, d.y, r, 0, Math.PI * 2);
                 }
 
+                // Train heads shove dots away as they pass through.
+                if (localTrain) {
+                    for (const rp of localTrain) {
+                        const tdx = d.x - rp.x;
+                        const tdy = d.y - rp.y;
+                        const t2 = tdx * tdx + tdy * tdy;
+                        if (t2 < TRAIN_REPEL2 && t2 > 0) {
+                            const td = Math.sqrt(t2);
+                            const tf = (TRAIN_REPEL - td) / TRAIN_REPEL;
+                            d.vx += (tdx / td) * tf * TRAIN_STRENGTH;
+                            d.vy += (tdy / td) * tf * TRAIN_STRENGTH;
+                        }
+                    }
+                }
+
                 d.vx += (d.ox - d.x) * cfg.spring;
                 d.vy += (d.oy - d.y) * cfg.spring;
                 d.vx *= cfg.friction;
@@ -517,8 +558,8 @@
             // Single fill for all the resting dots.
             ctx.fill(restPath);
 
-            // Once the cursor leaves and every dot is home, stop redrawing it.
-            inst.settled = !mouseNear && !moving;
+            // Once the cursor + train leave and every dot is home, stop redrawing.
+            inst.settled = !mouseNear && !localTrain && !moving;
         }
         requestAnimationFrame(tick);
     }
