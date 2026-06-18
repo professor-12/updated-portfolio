@@ -4,7 +4,6 @@ import Scatter from "../components/Scatter.astro";
 import ScatterImage from "../components/ScatterImage.astro";
 import SelectedWork from "../components/SelectedWork.astro";
 
-
 import shot from "../assets/shot.png";
 const about = `I BUILD AND SHIP SOFTWARE PRODUCTS END TO END. THE SIMPLE WAY TO PUT IT: YOU GIVE ME A PROBLEM OR GOAL, AND I TURN IT INTO A WORKING, SCALABLE PRODUCT. I OPERATE ACROSS THE FULL-STACK FROM UI/UX IMPLEMENTATION TO API DESIGN, PERFORMANCE OPTIMIZATION, AND PRODUCTION DEPLOYMENT. I CARE ABOUT BUILDING THINGS THAT ARE NOT JUST FUNCTIONAL, BUT CLEAN, MAINTAINABLE, AND FAST.`;
 
@@ -32,7 +31,7 @@ const aboutWidth = 600;
 <Layout>
 	<main class="mt-8 flex items-center justify-between md:mt-15">
 		<div
-			class="flex w-[70%] flex-col md:flex-row gap-8 md:gap-12 md:items-center"
+			class="flex  flex-col md:flex-row gap-8 md:gap-12 md:items-center"
 		>
 			<div class="w-full md:w-full">
 				<Scatter
@@ -92,6 +91,17 @@ const aboutWidth = 600;
 					}
 			</div>
 		</div>
+		<div class="hidden md:block w-[30%]">
+			<ScatterImage
+				src={shot.src}
+				width={400}
+				height={400}
+				dotSpacing={3}
+				dotRadius={1.1}
+				strength={10}
+				spring={3}
+				repel={20}
+			/>
 	</main>
 	<SelectedWork/>	
 </Layout>
