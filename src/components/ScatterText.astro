@@ -318,6 +318,13 @@
     function initEl(el: HTMLElement) {
         el.querySelectorAll("canvas").forEach((c) => c.remove());
 
+        // A previous init pins el to a fixed px width/height (see below). Clear
+        // it before measuring so clientWidth reflects the *container's* current
+        // width on re-init (resize), not the last canvas size — otherwise block
+        // text never reflows when the viewport changes.
+        el.style.width = "";
+        el.style.height = "";
+
         const rawText = (
             el.getAttribute("data-scatter-text") ??
             el.textContent ??
