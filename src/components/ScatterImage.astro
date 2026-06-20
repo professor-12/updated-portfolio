@@ -76,10 +76,14 @@ interface Dot {
   ox: number; oy: number;
   x:  number; y:  number;
   vx: number; vy: number;
-  r: number; g: number; b: number; a: number;
+  // Pre-computed fill colour for this dot. Building the rgba() string here once
+  // (instead of every frame) removes thousands of allocations + toFixed calls
+  // per frame — the main source of GC churn for dense images.
+  cs: string;
 }
 
 interface SIInstance {
+  host:   HTMLElement;
   canvas: HTMLCanvasElement;
   ctx:    CanvasRenderingContext2D;
   dots:   Dot[];
@@ -89,11 +93,31 @@ interface SIInstance {
     dotRadius: number;
     grayscale: boolean; color: string;
   };
+  // perf flags: only animate what's on screen and not already at rest
+  visible:  boolean;
+  settled:  boolean;
 }
 
 const mouse = { x: -9999, y: -9999 };
 const instances: SIInstance[] = [];
 let rafStarted = false;
+
+// Marks an instance off-screen (skipped in the loop) until it scrolls in.
+const visObserver =
+  typeof IntersectionObserver !== 'undefined'
+    ? new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            const inst = instances.find((i) => i.host === e.target);
+            if (inst) {
+              inst.visible = e.isIntersecting;
+              if (e.isIntersecting) inst.settled = false; // repaint on re-entry
+            }
+          }
+        },
+        { rootMargin: '100px' },
+      )
+    : null;
 
 function sampleImage(
   img: HTMLImageElement,
@@ -151,10 +175,20 @@ function initHost(host: HTMLElement) {
       ox: s.ox, oy: s.oy,
       x:  s.ox, y:  s.oy,
       vx: 0,    vy: 0,
-      r: s.r, g: s.g, b: s.b, a: s.a,
+      // Bake the fill colour once. Grayscale dots all share cfg.color.
+      cs: grayscale
+        ? color
+        : `rgba(${s.r},${s.g},${s.b},${(s.a / 255).toFixed(2)})`,
     }));
 
-    instances.push({ canvas, ctx, dots, cfg: { repel, strength, spring, friction, dotRadius, grayscale, color } });
+    const inst: SIInstance = {
+      host, canvas, ctx, dots,
+      cfg: { repel, strength, spring, friction, dotRadius, grayscale, color },
+      visible: true,
+      settled: false,
+    };
+    instances.push(inst);
+    visObserver?.observe(host);
 
     if (!rafStarted) {
       rafStarted = true;
@@ -164,23 +198,43 @@ function initHost(host: HTMLElement) {
 }
 
 function tick() {
-  for (const { canvas, ctx, dots, cfg } of instances) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const inst of instances) {
+    // Skip anything scrolled out of view — zero work while off-screen.
+    if (!inst.visible) continue;
+
+    const { canvas, ctx, dots, cfg } = inst;
+    const w = canvas.width;
+    const h = canvas.height;
 
     const rect = canvas.getBoundingClientRect();
     const mx   = mouse.x - rect.left - window.scrollX;
     const my   = mouse.y - rect.top  - window.scrollY;
 
+    // Is the cursor close enough to disturb any dot in this canvas?
+    const mouseNear =
+      mx > -cfg.repel && mx < w + cfg.repel &&
+      my > -cfg.repel && my < h + cfg.repel;
+
+    // Settled + cursor away => keep the last painted frame, do nothing.
+    if (inst.settled && !mouseNear) continue;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const r      = cfg.dotRadius;
+    const repel2 = cfg.repel * cfg.repel;
+    let moving   = false;
+
+    // Resting dots are batched per colour into one Path2D and filled in a
+    // single call per colour, instead of a beginPath/fill per dot.
+    const restPaths = new Map<string, Path2D>();
+
     for (const d of dots) {
-      const dx   = d.x - mx;
-      const dy   = d.y - my;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const dx = d.x - mx;
+      const dy = d.y - my;
+      const d2 = dx * dx + dy * dy;
 
-      const dotColor = cfg.grayscale
-        ? cfg.color
-        : `rgba(${d.r},${d.g},${d.b},${(d.a / 255).toFixed(2)})`;
-
-      if (dist < cfg.repel && dist > 0) {
+      if (d2 < repel2 && d2 > 0) {
+        const dist    = Math.sqrt(d2);
         const force   = (cfg.repel - dist) / cfg.repel;
         d.vx += (dx / dist) * force * cfg.strength;
         d.vy += (dy / dist) * force * cfg.strength;
@@ -192,17 +246,18 @@ function tick() {
         ctx.translate(d.x, d.y);
         ctx.rotate(angle);
         ctx.beginPath();
-        ctx.ellipse(0, 0, cfg.dotRadius * stretch, cfg.dotRadius * 0.55, 0, 0, Math.PI * 2);
-        ctx.fillStyle   = dotColor;
+        ctx.ellipse(0, 0, r * stretch, r * 0.55, 0, 0, Math.PI * 2);
+        ctx.fillStyle   = d.cs;
         ctx.globalAlpha = 0.4 + force * 0.6;
         ctx.fill();
         ctx.restore();
         ctx.globalAlpha = 1;
       } else {
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, cfg.dotRadius, 0, Math.PI * 2);
-        ctx.fillStyle = dotColor;
-        ctx.fill();
+        let path = restPaths.get(d.cs);
+        if (!path) restPaths.set(d.cs, (path = new Path2D()));
+        // moveTo prevents a connecting line from the previous arc.
+        path.moveTo(d.x + r, d.y);
+        path.arc(d.x, d.y, r, 0, Math.PI * 2);
       }
 
       d.vx += (d.ox - d.x) * cfg.spring;
@@ -211,7 +266,25 @@ function tick() {
       d.vy *= cfg.friction;
       d.x  += d.vx;
       d.y  += d.vy;
+
+      if (
+        Math.abs(d.vx) > 0.05 ||
+        Math.abs(d.vy) > 0.05 ||
+        Math.abs(d.x - d.ox) > 0.05 ||
+        Math.abs(d.y - d.oy) > 0.05
+      ) {
+        moving = true;
+      }
     }
+
+    // One fill per distinct colour for all the resting dots.
+    for (const [cs, path] of restPaths) {
+      ctx.fillStyle = cs;
+      ctx.fill(path);
+    }
+
+    // Once the cursor leaves and every dot is home, stop redrawing.
+    inst.settled = !mouseNear && !moving;
   }
 
   requestAnimationFrame(tick);

@@ -105,7 +105,18 @@ const scatterAttrs = {
 };
 ---
 
-<Tag {...scatterAttrs} {...rest}><slot /></Tag>
+<Tag {...scatterAttrs} {...rest}>
+    {/*
+      Real, machine-readable text lives here as a visually-hidden child so the
+      semantic DOM is never empty. Crawlers, LLM-based agents, and screen
+      readers read this; sighted users see the dot-matrix canvas the engine
+      paints on top. The canvas is driven by the data-scatter-text attribute
+      (not this text), so the visual effect is unchanged. sr-only is
+      absolutely-positioned + clipped, so it adds zero layout/overflow even
+      though the engine pins the element to the canvas's width/height.
+    */}
+    <span class="sr-only">{text}{!text && <slot />}</span>
+</Tag>
 
 <script>
     // Responsive sizing: pick the right preset per breakpoint and ask the

@@ -31,9 +31,9 @@ const aboutWidth = 600;
 <Layout>
 	<main class="mt-8 flex items-center justify-between md:mt-15">
 		<div
-			class="flex  flex-col md:flex-row gap-8 md:gap-12 md:items-center"
+			class="flex mx-auto w-full  flex-col md:flex-row gap-8 md:gap-12 md:items-center"
 		>
-			<div class="w-full md:w-full">
+			<div class="w-full flex-1 md:w-full">
 				<Scatter
 					as="h1"
 					text="Emmanuel Adewale"
@@ -103,5 +103,20 @@ const aboutWidth = 600;
 				repel={12}
 			/>
 	</main>
-	<SelectedWork/>	
+	<SelectedWork/>
+
+	{/* The hero shot is hidden on mobile (no room beside the bio), so show it
+	    on its own at the very end of the page instead. Desktop hides this copy. */}
+	<div class="md:hidden mt-16 mb-8 flex justify-center">
+		<ScatterImage
+			src={shot.src}
+			width={300}
+			height={300}
+			dotSpacing={3}
+			dotRadius={1}
+			strength={14}
+			spring={0.1}
+			repel={12}
+		/>
+	</div>
 </Layout>

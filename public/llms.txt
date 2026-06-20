@@ -1,0 +1,28 @@
+# Emmanuel Adewale
+
+> 18-year-old software engineer and Backend Lead at NativeBrands. Builds and ships full-stack software products end to end — from UI/UX implementation to API design, performance optimization, and production deployment. Cares about software that is not just functional, but clean, maintainable, and fast.
+
+This is the plain-text summary of Emmanuel Adewale's portfolio, provided for AI agents and LLMs. The website itself renders text as an interactive dot-matrix canvas effect; this file contains the same information in a clean, machine-readable form.
+
+## About
+
+- Name: Emmanuel Adewale (also known as Badejo Emmanuel / "Big Dev")
+- Role: Software Engineer, currently Backend Lead at NativeBrands
+- Age: 18
+- Focus: Full-stack product engineering — backend services, API design, system design, infrastructure, performance optimization, and production deployment.
+- Stack & strengths: React, TypeScript, Node.js, backend/API development, performance testing, infrastructure/DevOps, and AI agent tooling.
+- Summary: "You give me a problem or goal, and I turn it into a working, scalable product."
+
+## Experience
+
+- **NativeBrands — Backend Lead (current role).** Grew from frontend engineer to backend lead. Owns and maintains core backend services, ships new API endpoints while keeping existing systems stable, drives performance testing and optimization, and handles day-to-day operations from debugging production issues to improving deployment and monitoring workflows. Areas: frontend, backend, performance testing, infrastructure, API design.
+
+- **RenderLite — Technical Lead (personal project).** An AI-powered "deployment engineer" — think Cursor, but for infrastructure and deployments. Builds autonomous deployment workflows and AI-driven systems that analyze, plan, and execute infrastructure tasks with minimal human intervention, integrating cloud providers, deployment tools, and dev environments. Areas: AI agents, infrastructure, DevOps, backend, technical leadership.
+
+## Links
+
+- Website: https://badejoemmanuel.netlify.app/
+- GitHub: https://github.com/professor-12
+- LinkedIn: https://www.linkedin.com/in/badejo-emmanuel-890414293
+- Blog: https://blog.bigdev.uk
+- Email: badejoemmanuel805@gmail.com

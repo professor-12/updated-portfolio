@@ -174,6 +174,10 @@
         dots: Dot[];
         color: string;
         cfg: Cfg;
+        // Logical (CSS-pixel) canvas size. The backing store is this * dpr, so
+        // all hit-testing/clearing must use these, not canvas.width/height.
+        w: number;
+        h: number;
         // perf flags: only animate what's on screen and not already at rest
         visible: boolean;
         settled: boolean;
@@ -233,6 +237,37 @@
         }
         // 'none' — respect original
         return FONT[ch] ?? SHARED[ch] ?? SHARED[" "];
+    }
+
+    // Real horizontal space available to an inline element, used to decide
+    // whether a one-line heading must wrap on small screens. We can't trust the
+    // immediate parent: a flex/grid item (e.g. a tag pill) shrinks to its own
+    // content, so its width is ~0 and would force every word onto its own line.
+    // Climb past any shrink-to-fit ancestors to the first normal-flow block,
+    // and return its content width.
+    function constraintWidth(el: HTMLElement): number {
+        let node = el.parentElement;
+        while (node) {
+            const cs = getComputedStyle(node);
+            const parent = node.parentElement;
+            const parentDisp = parent
+                ? getComputedStyle(parent).display
+                : "";
+            // node is a flex/grid item (can shrink) → its width is unreliable.
+            const isShrinkItem =
+                parentDisp.includes("flex") || parentDisp.includes("grid");
+            if (
+                !isShrinkItem &&
+                cs.display !== "inline" &&
+                node.clientWidth > 0
+            ) {
+                const padX =
+                    parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+                return Math.max(0, node.clientWidth - padX);
+            }
+            node = parent;
+        }
+        return window.innerWidth;
     }
 
     function wrapText(
@@ -374,7 +409,7 @@
 
         let lines: string[];
         if (display === "inline") {
-            // Don't wrap — render on one line (or honour explicit \n in text)
+            // Render on one line (or honour explicit \n in text)…
             const transformed =
                 caseMode === "upper"
                     ? rawText.toUpperCase()
@@ -382,8 +417,23 @@
                       ? rawText.toLowerCase()
                       : rawText;
             lines = transformed.split("\\n");
+
+            // …but if a single line would be wider than the page (long headings
+            // on a phone), wrap it instead of overflowing the viewport. We
+            // measure against the nearest real layout constraint, NOT the
+            // immediate parent: chips/pills shrink to their content, so their
+            // width is meaningless and would wrap every tag to 2 chars.
+            const limit = constraintWidth(el);
+            const widest = lines.reduce((m, l) => Math.max(m, l.length), 0);
+            if (widest * charW > limit) {
+                const maxChars = Math.max(1, Math.floor(limit / charW));
+                lines = lines.flatMap((l) =>
+                    wrapText(l, maxChars, caseMode),
+                );
+            }
         } else {
-            // Wrap to fit available width.
+            // Wrap to fit available width. Cleared style above means
+            // clientWidth now reflects the real container, not the last canvas.
             const containerW =
                 el.clientWidth ||
                 (el.parentElement?.clientWidth ?? window.innerWidth);
@@ -400,12 +450,22 @@
 
         const { dots, width, height } = buildDots(lines, cfg, caseMode);
 
+        // Render the backing store at the device pixel ratio so the dots stay
+        // crisp on high-DPI/mobile screens instead of being upscaled into
+        // fuzzy blobs. Capped at 2 to keep the fill cost reasonable.
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
         const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = Math.ceil(width * dpr);
+        canvas.height = Math.ceil(height * dpr);
+        // CSS size stays in logical px; the extra backing pixels add sharpness.
         canvas.style.cssText =
-            "display:block;pointer-events:none;position:absolute;top:0;left:0;";
+            "display:block;pointer-events:none;position:absolute;top:0;left:0;" +
+            "width:" + width + "px;height:" + height + "px;";
         canvas.setAttribute("aria-hidden", "true");
+
+        const ctx = canvas.getContext("2d")!;
+        // Draw in logical px; the transform maps them onto the dense backing.
+        ctx.scale(dpr, dpr);
 
         el.style.color = "transparent";
         el.style.position = "relative";
@@ -417,10 +477,12 @@
         instances.push({
             el,
             canvas,
-            ctx: canvas.getContext("2d")!,
+            ctx,
             dots,
             color,
             cfg,
+            w: width,
+            h: height,
             // assume visible until the observer says otherwise (handles
             // browsers without IntersectionObserver too)
             visible: true,
@@ -459,7 +521,7 @@
             // chunked text where most paragraphs are off-screen.
             if (!inst.visible) continue;
 
-            const { canvas, ctx, dots, color, cfg } = inst;
+            const { canvas, ctx, dots, color, cfg, w, h } = inst;
 
             const rect = canvas.getBoundingClientRect();
             const mx = mouse.x - rect.left - window.scrollX;
@@ -468,9 +530,9 @@
             // Is the cursor close enough to this canvas to disturb any dot?
             const mouseNear =
                 mx > -cfg.repel &&
-                mx < canvas.width + cfg.repel &&
+                mx < w + cfg.repel &&
                 my > -cfg.repel &&
-                my < canvas.height + cfg.repel;
+                my < h + cfg.repel;
 
             // Train heads currently over this canvas (converted to local coords).
             let localTrain: { x: number; y: number }[] | null = null;
@@ -479,9 +541,9 @@
                 const ly = rp.y - rect.top - window.scrollY;
                 if (
                     lx > -TRAIN_REPEL &&
-                    lx < canvas.width + TRAIN_REPEL &&
+                    lx < w + TRAIN_REPEL &&
                     ly > -TRAIN_REPEL &&
-                    ly < canvas.height + TRAIN_REPEL
+                    ly < h + TRAIN_REPEL
                 ) {
                     (localTrain ??= []).push({ x: lx, y: ly });
                 }
@@ -490,7 +552,7 @@
             // Settled + nothing nearby => keep last frame painted.
             if (inst.settled && !mouseNear && !localTrain) continue;
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, w, h);
 
             let moving = false;
             const r = cfg.dotR;

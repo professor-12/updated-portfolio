@@ -19,18 +19,21 @@ import "../styles/global.css";
 		<meta name="generator" content={Astro.generator} />
 
 		<title>
-			Emmanuel's Chronicles — Engineering Notes, System Design & Product
-			Building
+			Emmanuel Adewale — Software Engineer & Backend Lead | Portfolio
 		</title>
 
 		<meta
 			name="description"
-			content="Thoughts on backend engineering, system design, infrastructure, AI tooling, performance testing, and the journey of building scalable products."
+			content="Emmanuel Adewale is an 18-year-old software engineer and Backend Lead at NativeBrands. He ships full-stack products end to end — backend services, API design, system design, infrastructure, performance optimization, and AI agent tooling."
 		/>
+
+		<!-- Let crawlers and AI agents index and follow everything. -->
+		<meta name="robots" content="index, follow, max-image-preview:large" />
+		<link rel="canonical" href="https://badejoemmanuel.netlify.app/" />
 
 		<meta
 			name="keywords"
-			content="Emmanuel Adewale, Backend Engineer, Software Engineer, System Design, Infrastructure, DevOps, AI Agents, Engineering Blog, Product Engineering"
+			content="Emmanuel Adewale, Software Engineer, Backend Engineer, Backend Lead, Full-Stack Developer, System Design, Infrastructure, DevOps, AI Agents, API Design, Performance Testing, React, TypeScript, Node.js, Portfolio"
 		/>
 
 		<meta name="author" content="Emmanuel Adewale" />
@@ -38,14 +41,17 @@ import "../styles/global.css";
 		<!-- Open Graph -->
 		<meta
 			property="og:title"
-			content="Emmanuel's Chronicles — Engineering Notes, System Design & Product Building"
+			content="Emmanuel Adewale — Software Engineer & Backend Lead"
 		/>
 		<meta
 			property="og:description"
-			content="Insights on backend engineering, infrastructure, AI tooling, performance optimization, and building products that scale."
+			content="18-year-old software engineer and Backend Lead at NativeBrands. Ships full-stack products end to end — backend, API design, system design, infrastructure, performance, and AI agent tooling."
 		/>
-		<meta property="og:type" content="website" />
-		<meta property="og:url" content="https://badejoemmanuel.netlify.app" />
+		<meta property="og:type" content="profile" />
+		<meta property="profile:first_name" content="Emmanuel" />
+		<meta property="profile:last_name" content="Adewale" />
+		<meta property="og:url" content="https://badejoemmanuel.netlify.app/" />
+		<meta property="og:site_name" content="Emmanuel Adewale" />
 		<meta
 			property="og:image"
 			content="https://badejoemmanuel.netlify.app/og-image.png"
@@ -55,23 +61,69 @@ import "../styles/global.css";
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta
 			name="twitter:title"
-			content="Emmanuel's Chronicles — Engineering Notes, System Design & Product Building"
+			content="Emmanuel Adewale — Software Engineer & Backend Lead"
 		/>
 		<meta
 			name="twitter:description"
-			content="Insights on backend engineering, infrastructure, AI tooling, performance optimization, and building products that scale."
+			content="18-year-old software engineer and Backend Lead at NativeBrands. Full-stack: backend, API design, system design, infrastructure, performance, and AI agent tooling."
 		/>
 		<meta
 			name="twitter:image"
 			content="https://badejoemmanuel.netlify.app/og-image.png"
 		/>
+
+		<!--
+		  Structured data (JSON-LD). This is the single most important signal for
+		  AI agents and search engines: a clean, machine-readable description of
+		  who Emmanuel is, what he does, and where to find him — independent of
+		  any visual effect on the page.
+		-->
+		<script
+			type="application/ld+json"
+			set:html={JSON.stringify({
+				"@context": "https://schema.org",
+				"@type": "Person",
+				name: "Emmanuel Adewale",
+				alternateName: ["Badejo Emmanuel", "Big Dev"],
+				url: "https://badejoemmanuel.netlify.app/",
+				image: "https://badejoemmanuel.netlify.app/og-image.png",
+				email: "mailto:badejoemmanuel805@gmail.com",
+				jobTitle: "Backend Lead / Software Engineer",
+				description:
+					"18-year-old software engineer and Backend Lead at NativeBrands. Builds and ships full-stack software products end to end — from UI/UX implementation to API design, performance optimization, and production deployment.",
+				worksFor: {
+					"@type": "Organization",
+					name: "NativeBrands",
+				},
+				knowsAbout: [
+					"Backend Engineering",
+					"System Design",
+					"API Design",
+					"Infrastructure",
+					"DevOps",
+					"Performance Testing & Optimization",
+					"AI Agents",
+					"Full-Stack Development",
+					"React",
+					"TypeScript",
+					"Node.js",
+				],
+				sameAs: [
+					"https://github.com/professor-12",
+					"https://www.linkedin.com/in/badejo-emmanuel-890414293",
+					"https://blog.bigdev.uk",
+				],
+			})}
+		/>
 	</head>
-	<body class="bg-black max-w-[70%] mx-auto">
-		<Cursor />
-		<PathTrain />
-		<DrawHint />
-		<ScatterText />
-		<NavBar />
-		<slot />
+	<body class="bg-black text-white font-sans relative">
+		<div class="max-w-[90%] md:max-w-[1800px] md:px-6 mx-auto">
+			<Cursor />
+			<PathTrain />
+			<DrawHint />
+			<ScatterText />
+			<NavBar />
+			<slot />
+		</div>
 	</body>
 </html>
